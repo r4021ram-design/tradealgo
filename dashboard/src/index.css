@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+@theme {
+  --color-finance-bg: #ffffff;
+  --color-finance-panel: #f8f9fa;
+  --color-finance-border: #cccccc;
+  --color-finance-text: #000000;
+  --color-finance-muted: #555555;
+  --color-finance-green: #008800;
+  --color-finance-red: #cc0000;
+}
+
+@layer base {
+  * {
+    border-radius: 0 !important;
+  }
+  
+  body {
+    @apply bg-finance-bg text-finance-text overflow-hidden;
+    font-family: 'Calibri', 'Arial', sans-serif; /* Excel-like fonts */
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ── Excel UI Utilities ── */
+.excel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Calibri', 'Arial', sans-serif;
+  font-size: 12px;
+}
+
+.excel-table th, .excel-table td {
+  border: 1px solid #ccc;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+
+.excel-header {
+  background-color: #e6e6e6;
+  font-weight: bold;
+  text-align: center;
+  color: #333;
+}
+
+.excel-input {
+  background-color: #ffff00;
+  color: #000;
+}
+
+.excel-positive {
+  background-color: #c6efce;
+  color: #006100;
+}
+
+.excel-negative {
+  background-color: #ffc7ce;
+  color: #9c0006;
+}
+
+.excel-neutral-bg {
+  background-color: #f2f2f2;
+}
+
+/* AG-Grid Custom Light Theme Overrides for Terminal */
+.ag-theme-alpine-dark, .ag-theme-quartz-dark {
+  /* We'll override the 'dark' theme vars to be light, 
+     or we can just switch class names in the components. 
+     For now, redefining variables to force light mode without changing all classNames if missed. */
+  --ag-background-color: #ffffff;
+  --ag-header-background-color: #f0f0f0;
+  --ag-border-color: #cccccc;
+  --ag-row-border-color: #e0e0e0;
+  --ag-header-column-separator-color: #cccccc;
+  --ag-cell-horizontal-border: solid #e0e0e0;
+  --ag-row-hover-color: #f5f5f5;
+  --ag-font-size: 12px;
+  --ag-font-family: 'Calibri', 'Arial', sans-serif;
+  --ag-cell-horizontal-padding: 6px;
+  --ag-header-column-resize-handle-width: 4px;
+  --ag-foreground-color: #000000;
+  --ag-header-foreground-color: #333333;
+}
+
+/* Flash Animations for Ticks */
+@keyframes flashGreen {
+  0% { background-color: #c6efce; color: #006100; }
+  100% { background-color: transparent; }
+}
+
+@keyframes flashRed {
+  0% { background-color: #ffc7ce; color: #9c0006; }
+  100% { background-color: transparent; }
+}
+
+.flash-up {
+  animation: flashGreen 0.6s ease-out;
+  color: var(--color-finance-green) !important;
+}
+
+.flash-down {
+  animation: flashRed 0.6s ease-out;
+  color: var(--color-finance-red) !important;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+}

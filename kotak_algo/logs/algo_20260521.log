@@ -1,0 +1,21 @@
+NumExpr defaulting to 4 threads.
+NumExpr defaulting to 4 threads.
+Using selector: SelectSelector
+{"event": "instrument_db_initialized", "session_id": "c46ab4cd", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:31:02.391429", "level": "info"}
+{"event": "starting_instrument_sync", "session_id": "c46ab4cd", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:31:02.407362", "level": "info"}
+Starting new HTTPS connection (1): www.nseindia.com:443
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 633
+{"event": "nse_session_warmed_up", "session_id": "c46ab4cd", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:31:04.620408", "level": "info"}
+Starting new HTTPS connection (1): nsearchives.nseindia.com:443
+https://nsearchives.nseindia.com:443 "GET /content/fo/NSE_FO_contract_21052026.csv.gz HTTP/1.1" 404 3425
+{"attempt": 1, "error": "404 Client Error: Not Found for url: https://nsearchives.nseindia.com/content/fo/NSE_FO_contract_21052026.csv.gz", "event": "nse_request_error", "session_id": "c46ab4cd", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:31:05.100056", "level": "warning"}
+https://nsearchives.nseindia.com:443 "GET /content/fo/NSE_FO_contract_21052026.csv.gz HTTP/1.1" 404 3425
+{"attempt": 2, "error": "404 Client Error: Not Found for url: https://nsearchives.nseindia.com/content/fo/NSE_FO_contract_21052026.csv.gz", "event": "nse_request_error", "session_id": "c46ab4cd", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:31:07.125988", "level": "warning"}
+https://nsearchives.nseindia.com:443 "GET /content/fo/NSE_FO_contract_21052026.csv.gz HTTP/1.1" 404 3425
+{"attempt": 3, "error": "404 Client Error: Not Found for url: https://nsearchives.nseindia.com/content/fo/NSE_FO_contract_21052026.csv.gz", "event": "nse_request_error", "session_id": "c46ab4cd", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:31:09.149633", "level": "warning"}
+{"url": "https://nsearchives.nseindia.com/content/fo/NSE_FO_contract_21052026.csv.gz", "error": "404 Client Error: Not Found for url: https://nsearchives.nseindia.com/content/fo/NSE_FO_contract_21052026.csv.gz", "event": "fetch_contract_master_failed", "session_id": "c46ab4cd", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:31:11.151134", "level": "error"}
+NumExpr defaulting to 4 threads.
+NumExpr defaulting to 4 threads.
+NumExpr defaulting to 4 threads.

@@ -1,0 +1,61 @@
+broker:
+  consumer_key: "${KOTAK_CONSUMER_KEY}"
+  mobile_number: "${KOTAK_MOBILE_NUMBER}"
+  ucc: "${KOTAK_UCC}"
+  mpin: "${KOTAK_MPIN}"
+  totp_secret: "${KOTAK_TOTP_SECRET}"
+  environment: "${KOTAK_ENVIRONMENT:-prod}"
+  telegram:
+    enabled: false
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    chat_id: "${TELEGRAM_CHAT_ID}"
+
+strategies:
+  straddle:
+    enabled: true
+    underlying: "NIFTY"
+    exchange_segment: "nse_fo"
+    product: "NRML"
+    lots: 1
+    lot_size: 75
+    strike_gap: 50
+    sl_multiplier: 2.0
+    target_pct: 50
+    entry_times: ["09:25", "13:05"]
+    exit_time: "15:15"
+    instrument_type: "OPTIDX"
+  strangle:
+    enabled: true
+    underlying: "BANKNIFTY"
+    exchange_segment: "nse_fo"
+    product: "NRML"
+    lots: 1
+    lot_size: 15
+    strike_gap: 100
+    strangle_gap: 300
+    sl_multiplier: 2.0
+    target_pct: 50
+    entry_times: ["09:25", "13:05"]
+    exit_time: "15:15"
+    instrument_type: "OPTIDX"
+
+risk:
+  max_daily_loss: 5000
+  combined_sl_pct: 50
+  max_open_strategies: 2
+  paper_trade: true
+  max_reprice_attempts: 3
+  reprice_interval_seconds: 30
+  position_poll_interval_seconds: 5
+
+nse_reference:
+  enabled: true
+  refresh_time: "08:45"
+  archive_dir: "data/nse"
+  urls:
+    fo_lot_size: "https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv"
+    fo_qty_freeze: "https://nsearchives.nseindia.com/content/fo/qtyfreeze.csv"
+    equity_securities: "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
+    symbol_changes: "https://nsearchives.nseindia.com/content/equities/symbolchange.csv"
+    company_name_changes: "https://nsearchives.nseindia.com/content/equities/namechange.csv"
+

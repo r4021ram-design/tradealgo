@@ -1,0 +1,274 @@
+/* ═══════════════════════════════════════════════════
+   Option Chain — Excel Layout Styles
+   ═══════════════════════════════════════════════════ */
+
+.oc-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #ffffff;
+  font-family: 'Calibri', 'Arial', sans-serif;
+}
+
+/* ── Header Bar ── */
+.oc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #ccc;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.oc-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.oc-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+}
+
+.oc-select {
+  background: #fff;
+  border: 1px solid #ccc;
+  color: #000;
+  padding: 2px 4px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.oc-spot-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #333;
+}
+
+.oc-spot-badge .spot-value {
+  color: #008800;
+  font-weight: bold;
+}
+
+.oc-atm-badge {
+  background: #ffff00;
+  border: 1px solid #ccc;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: #000;
+  font-weight: bold;
+}
+
+/* ── Greeks Toggle ── */
+.oc-greeks-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 8px;
+}
+
+.oc-toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+}
+
+.oc-toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+.oc-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 18px;
+}
+
+.oc-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 12px; width: 12px;
+  left: 3px; bottom: 3px;
+  background-color: #fff;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .oc-toggle-slider { background-color: #008800; }
+input:checked + .oc-toggle-slider:before { transform: translateX(14px); }
+
+.oc-toggle-label {
+  font-size: 11px;
+  color: #333;
+  font-weight: bold;
+}
+
+/* ── Table Wrapper ── */
+.oc-table-wrap {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+/* ── Table ── */
+.oc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  table-layout: fixed;
+  min-width: 1400px;
+}
+
+.oc-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* ── Header Rows ── */
+.oc-table th {
+  border: 1px solid #ccc;
+  background: #e6e6e6;
+  color: #333;
+  font-weight: bold;
+  padding: 4px;
+}
+
+.oc-table .oc-header-row-main th {
+  text-align: center;
+  font-size: 13px;
+}
+
+.oc-table .oc-header-row-sub th {
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.oc-table .oc-header-row-sub .oc-th-strike-sub {
+  text-align: center;
+}
+
+/* ── Data Cells ── */
+.oc-table td {
+  padding: 4px 6px;
+  text-align: right;
+  font-size: 12px;
+  color: #000;
+  border: 1px solid #e0e0e0;
+  white-space: nowrap;
+}
+
+/* Strike column */
+.oc-table td.oc-strike {
+  text-align: center;
+  font-weight: bold;
+  background: #f2f2f2;
+  border-left: 2px solid #ccc;
+  border-right: 2px solid #ccc;
+}
+
+/* ── ITM Shading ── */
+.oc-table tr .oc-itm-ce { background: #fdfae6; } /* Light yellow tint for ITM */
+.oc-table tr .oc-itm-pe { background: #fdfae6; }
+
+/* ── ATM Row ── */
+.oc-table tr.oc-atm-row td {
+  border-top: 2px solid #008800;
+  border-bottom: 2px solid #008800;
+}
+
+.oc-table tr.oc-atm-row td.oc-strike {
+  background: #c6efce;
+  color: #006100;
+  font-size: 14px;
+}
+
+/* ── Color Classes ── */
+.oc-green { color: #008800; }
+.oc-red { color: #cc0000; }
+.oc-muted { color: #666; }
+
+.oc-oi-pos { color: #008800; }
+.oc-oi-neg { color: #cc0000; }
+
+.oc-ltp { font-weight: bold; }
+.oc-chg { font-weight: bold; }
+.oc-greek { color: #555; }
+
+/* ── Visual OI Bars ── */
+.oc-oi-bar-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.oc-oi-bar {
+  position: absolute;
+  top: 0; bottom: 0; right: -5px;
+  opacity: 0.2;
+  z-index: 1;
+}
+.ce-oi-bar { background-color: #008800; }
+.pe-oi-bar { background-color: #cc0000; }
+.oc-oi-val { position: relative; z-index: 2; }
+
+/* ── Max Highlights ── */
+.oc-table td.oc-highlight-ce { background-color: #c6efce; color: #006100; font-weight: bold; }
+.oc-table td.oc-highlight-pe { background-color: #ffc7ce; color: #9c0006; font-weight: bold; }
+
+/* ── Interactive Trade Cells ── */
+.oc-trade-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+}
+.oc-trade-val { transition: opacity 0.2s ease; }
+.oc-trade-btns {
+  position: absolute;
+  right: -2px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+}
+.oc-table tbody tr:hover .oc-trade-cell:hover .oc-trade-btns { opacity: 1; pointer-events: auto; }
+.oc-table tbody tr:hover .oc-trade-cell:hover .oc-trade-val { opacity: 0.1; }
+
+.oc-btn-buy, .oc-btn-sell {
+  border: 1px solid #ccc;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #fff;
+}
+.oc-btn-buy { background-color: #008800; }
+.oc-btn-sell { background-color: #cc0000; }
+
+/* ── Summary Footer ── */
+.oc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #f8f9fa;
+  border-top: 1px solid #ccc;
+  font-size: 11px;
+  color: #333;
+}
+.oc-footer-stat { display: flex; gap: 6px; }
+.oc-footer-stat .value { font-weight: bold; }

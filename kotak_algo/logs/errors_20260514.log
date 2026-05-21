@@ -1,0 +1,2 @@
+{"component": "neo_client", "error": "Non-base32 digit found", "event": "authentication_failed", "session_id": "55600406", "trading_day": "2026-05-14", "timestamp": "2026-05-14T23:40:42.595822", "level": "error"}
+{"error": "Broker authentication failed: Non-base32 digit found", "event": "algo_app_start_failed", "session_id": "55600406", "trading_day": "2026-05-14", "timestamp": "2026-05-14T23:40:42.598303", "level": "error"}
