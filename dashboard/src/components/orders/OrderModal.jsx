@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTerminalStore } from '../../store/useTerminalStore';
 import clsx from 'clsx';
 import { X } from 'lucide-react';
+import { getApiUrl } from '../../utils/api';
 
 // Mock market depth data
 const mockDepth = [
@@ -41,9 +42,9 @@ export const OrderModal = () => {
   // Determine lot size based on symbol prefix
   const getLotSize = (sym) => {
     if (!sym) return 1;
-    if (sym.startsWith('NIFTY')) return 25;
-    if (sym.startsWith('BANKNIFTY')) return 15;
-    if (sym.startsWith('FINNIFTY')) return 40;
+    if (sym.startsWith('NIFTY')) return 65;
+    if (sym.startsWith('BANKNIFTY')) return 30;
+    if (sym.startsWith('FINNIFTY')) return 60;
     if (sym.startsWith('MIDCPNIFTY')) return 75;
     if (sym.startsWith('SENSEX')) return 10;
     if (sym.startsWith('BANKEX')) return 15;
@@ -149,7 +150,7 @@ export const OrderModal = () => {
 
     try {
       setError(null);
-      const response = await fetch('http://localhost:8000/api/order/place', {
+      const response = await fetch(getApiUrl('/api/order/place'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(apiPayload)

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTerminalStore } from '../store/useTerminalStore';
+import { getApiUrl } from '../utils/api';
 
 /**
  * Check if Indian market is currently open (9:15 AM – 3:30 PM IST, weekdays).
@@ -35,7 +36,7 @@ export function useOptionChainData() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/api/free/option-chain/${underlying}`);
+      const response = await fetch(getApiUrl(`/api/free/option-chain/${underlying}`));
 
       if (!response.ok) {
         // Market closed or NSE unavailable — clear the chain, don't show fake data

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getApiUrl } from '../utils/api';
 
 // Empty initial state — populated from live API only
 const initialPositions = [];
@@ -91,7 +92,7 @@ export const useTerminalStore = create((set, get) => ({
   // Execute multi-leg strategy
   executeStrategy: async (name, legs) => {
     try {
-      const response = await fetch('http://localhost:8000/api/strategy/execute', {
+      const response = await fetch(getApiUrl('/api/strategy/execute'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, legs })

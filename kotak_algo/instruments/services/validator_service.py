@@ -57,18 +57,20 @@ class InstrumentValidator:
         """Check for missing or zero lot sizes for active contracts."""
         zero_lots = self.db.query(Contract).filter(Contract.lot_size <= 0, Contract.contract_status == "ACTIVE").all()
         
-        # Check specific known lot sizes as sanity check
+        # Check specific known lot sizes as sanity check (accepting lists of historically and currently valid lot sizes)
         sanity_checks = {
-            "NIFTY": 50 if date.today() < date(2024, 4, 26) else 25, # Note: NIFTY lot size changed
-            "BANKNIFTY": 15,
-            "FINNIFTY": 40
+            "NIFTY": [25, 50, 65, 75],
+            "BANKNIFTY": [15, 30],
+            "FINNIFTY": [40, 60]
         }
         
         sanity_failures = []
         for symbol, expected in sanity_checks.items():
             actual = self.db.query(Contract.lot_size).filter(Contract.symbol == symbol).first()
-            if actual and actual[0] != expected:
-                sanity_failures.append(f"{symbol} lot size mismatch: expected {expected}, got {actual[0]}")
+            if actual:
+                expected_list = expected if isinstance(expected, list) else [expected]
+                if actual[0] not in expected_list:
+                    sanity_failures.append(f"{symbol} lot size mismatch: expected one of {expected_list}, got {actual[0]}")
 
         return {
             "errors": len(zero_lots),

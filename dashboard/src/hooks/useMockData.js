@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTerminalStore } from '../store/useTerminalStore';
+import { getApiUrl } from '../utils/api';
 
 /**
  * Returns live positions and metrics from the backend.
@@ -20,7 +21,7 @@ export function useLiveData() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://localhost:8000/sync-state');
+        const response = await fetch(getApiUrl('/sync-state'));
         if (!response.ok) throw new Error('Backend unavailable');
 
         const data = await response.json();

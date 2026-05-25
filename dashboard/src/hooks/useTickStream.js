@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useTerminalStore } from '../store/useTerminalStore';
+import { getWsUrl } from '../utils/api';
 
-const WS_URL = 'ws://localhost:8000/ws/live-feed';
+const WS_URL = getWsUrl('/ws/live-feed');
 
 /**
  * Connects to the backend WebSocket for real-time tick data.

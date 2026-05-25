@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Calendar, Zap, Layers } from 'lucide-react';
+import { getApiUrl } from '../../utils/api';
 
 const InstrumentExplorer = () => {
   const [contracts, setContracts] = useState([]);
@@ -14,7 +15,7 @@ const InstrumentExplorer = () => {
   const fetchContracts = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/api/contracts?symbol=${filterSymbol}`);
+      const response = await fetch(getApiUrl(`/api/contracts?symbol=${filterSymbol}`));
       const data = await response.json();
       setContracts(data);
     } catch (error) {
