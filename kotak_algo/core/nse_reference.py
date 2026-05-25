@@ -229,7 +229,73 @@ class NSEReferenceUpdater:
     def _load_kotak_master(self, exchange_segment: str) -> list[dict[str, str]]:
         path = self.broker.scrip_master_path(exchange_segment)
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
-            return list(csv.DictReader(handle))
+            raw_rows = list(csv.DictReader(handle))
+            
+        normalized_rows = []
+        for row in raw_rows:
+            # 1. Underlying Symbol Name
+            underlying = row.get("pSymbolName") or row.get("symbol")
+            if not underlying or underlying.isdigit():
+                underlying = row.get("pSymbol")
+                if underlying and underlying.isdigit():
+                    underlying = ""
+            if not underlying:
+                continue
+                
+            # 2. Expiry Date
+            expiry = row.get("pExpDt")
+            if not expiry:
+                raw_exp = row.get("pExpiryDate") or row.get("lExpiryDate ")
+                if raw_exp and raw_exp.isdigit():
+                    try:
+                        dt = datetime.fromtimestamp(int(raw_exp))
+                        expiry = dt.strftime("%d-%b-%Y")
+                    except Exception:
+                        pass
+                else:
+                    expiry = raw_exp or ""
+                    
+            # 3. Strike Price
+            strike = row.get("pStrkPrc")
+            if not strike:
+                raw_strike = row.get("dStrikePrice;") or row.get("dStrikePrice")
+                if raw_strike:
+                    try:
+                        f_strike = float(raw_strike)
+                        if f_strike > 10000:
+                            strike = str(f_strike / 100.0)
+                        else:
+                            strike = str(f_strike)
+                    except Exception:
+                        strike = raw_strike
+                else:
+                    strike = "0.0"
+                    
+            # 4. Token
+            token = row.get("token")
+            if not token:
+                token = row.get("pSymbol") or ""
+                
+            # 5. Option Type
+            opt_type = row.get("pOptTp") or row.get("pOptionType") or ""
+            
+            # 6. Lot Size
+            lot_size = row.get("lotSize") or row.get("lLotSize") or row.get("iLotSize") or ""
+
+            norm_row = {
+                "pSymbol": underlying,
+                "pInstType": row.get("pInstType") or row.get("pInstName") or "",
+                "pExchSeg": row.get("pExchSeg") or row.get("pExchange") or "",
+                "pExpDt": expiry,
+                "lotSize": lot_size,
+                "pTrdSymbol": row.get("pTrdSymbol") or "",
+                "token": token,
+                "pOptTp": opt_type,
+                "pStrkPrc": strike,
+            }
+            normalized_rows.append(norm_row)
+            
+        return normalized_rows
 
     @staticmethod
     def _read_csv(path: Path) -> list[dict[str, str]]:

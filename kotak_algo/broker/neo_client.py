@@ -218,25 +218,59 @@ class NeoBrokerClient:
         return path
 
     def _extract_path(self, raw_response: Any) -> Path:
+        raw_path = None
         if isinstance(raw_response, str):
-            return Path(raw_response).expanduser().resolve()
+            raw_path = raw_response
 
-        if isinstance(raw_response, dict):
+        elif isinstance(raw_response, dict):
             for key in ("file_path", "path", "data", "message"):
                 value = raw_response.get(key)
                 if isinstance(value, str) and value.lower().endswith(".csv"):
-                    return Path(value).expanduser().resolve()
+                    raw_path = value
+                    break
 
-        if isinstance(raw_response, list):
+        elif isinstance(raw_response, list):
             for item in raw_response:
                 if isinstance(item, str) and item.lower().endswith(".csv"):
-                    return Path(item).expanduser().resolve()
+                    raw_path = item
+                    break
                 if isinstance(item, dict):
                     for value in item.values():
                         if isinstance(value, str) and value.lower().endswith(".csv"):
-                            return Path(value).expanduser().resolve()
+                            raw_path = value
+                            break
+                    if raw_path:
+                        break
 
-        raise ValueError(f"Could not parse scrip master response: {raw_response!r}")
+        if not raw_path:
+            raise ValueError(f"Could not parse scrip master response: {raw_response!r}")
+
+        # Check if the extracted path is actually a URL
+        if raw_path.startswith("http://") or raw_path.startswith("https://"):
+            try:
+                import requests
+                self.logger.info("downloading_remote_scrip_master", url=raw_path)
+                
+                # Make local folder for downloaded scrip master files
+                local_dir = Path("data/scrip_master")
+                local_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Extract filename from URL
+                filename = raw_path.split("/")[-1]
+                if not filename.endswith(".csv"):
+                    filename = "scrip_master.csv"
+                    
+                local_path = local_dir / filename
+                response = requests.get(raw_path, timeout=60)
+                response.raise_for_status()
+                local_path.write_bytes(response.content)
+                self.logger.info("downloaded_remote_scrip_master_success", local_path=str(local_path))
+                return local_path.resolve()
+            except Exception as e:
+                self.logger.error("failed_to_download_remote_scrip_master", url=raw_path, error=str(e))
+                raise ValueError(f"Failed to download remote scrip master from URL {raw_path}: {e}") from e
+
+        return Path(raw_path).expanduser().resolve()
 
     # ── Order Operations ─────────────────────────────────────────
 
