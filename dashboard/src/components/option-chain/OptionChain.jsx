@@ -99,6 +99,7 @@ export const OptionChain = () => {
   const selectedUnderlying = useTerminalStore(s => s.selectedUnderlying);
   const selectedExpiry = useTerminalStore(s => s.selectedExpiry);
   const availableExpiries = useTerminalStore(s => s.availableExpiries);
+  const availableUnderlyings = useTerminalStore(s => s.availableUnderlyings);
   const setUnderlying = useTerminalStore(s => s.setUnderlying);
   const setExpiry = useTerminalStore(s => s.setExpiry);
   const openOrderModal = useTerminalStore(s => s.openOrderModal);
@@ -181,8 +182,9 @@ export const OptionChain = () => {
             value={selectedUnderlying}
             onChange={e => setUnderlying(e.target.value)}
           >
-            <option value="NIFTY">NIFTY</option>
-            <option value="BANKNIFTY">BANKNIFTY</option>
+            {availableUnderlyings.map(und => (
+              <option key={und} value={und}>{und}</option>
+            ))}
           </select>
 
           <select

@@ -28,21 +28,43 @@ export const isMarketOpen = () => {
 export function useOptionChainData() {
   const underlying = useTerminalStore(s => s.selectedUnderlying);
   const selectedExpiry = useTerminalStore(s => s.selectedExpiry);
+  const availableUnderlyings = useTerminalStore(s => s.availableUnderlyings);
+  const setAvailableUnderlyings = useTerminalStore(s => s.setAvailableUnderlyings);
   const setOptionChain = useTerminalStore(s => s.setOptionChain);
   const setSpotPrice = useTerminalStore(s => s.setSpotPrice);
   const setExpiry = useTerminalStore(s => s.setExpiry);
   const setAvailableExpiries = useTerminalStore(s => s.setAvailableExpiries);
   const setMarketWatch = useTerminalStore(s => s.setMarketWatch);
 
+  // Fetch all underlyings once on mount
+  useEffect(() => {
+    const fetchUnderlyings = async () => {
+      try {
+        const response = await fetch(getApiUrl('/api/free/underlyings'));
+        if (response.ok) {
+          const data = await response.json();
+          if (data.underlyings && data.underlyings.length > 0) {
+            setAvailableUnderlyings(data.underlyings);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch underlyings:', err);
+      }
+    };
+    fetchUnderlyings();
+  }, [setAvailableUnderlyings]);
+
   const fetchData = async () => {
     try {
-      const response = await fetch(getApiUrl(`/api/free/option-chain/${underlying}`));
+      const url = selectedExpiry 
+        ? getApiUrl(`/api/free/option-chain/${underlying}?expiry=${encodeURIComponent(selectedExpiry)}`)
+        : getApiUrl(`/api/free/option-chain/${underlying}`);
+      const response = await fetch(url);
 
       if (!response.ok) {
-        // Market closed or NSE unavailable — clear the chain, don't show fake data
         if (response.status === 503) {
-          console.warn('[OptionChain] NSE data unavailable (market closed or NSE down)');
-          return; // Keep last known data, don't overwrite with nothing
+          console.warn('[OptionChain] data unavailable (market closed or broker offline)');
+          return;
         }
         throw new Error(`HTTP ${response.status}`);
       }
@@ -50,7 +72,19 @@ export function useOptionChainData() {
       const data = await response.json();
       
       const spot = data.spotPrice;
-      const step = underlying === 'BANKNIFTY' ? 100 : 50;
+      
+      // Determine strike step dynamically from option chain difference
+      let step = 50;
+      if (data.optionChain && data.optionChain.length > 1) {
+        step = Math.abs(data.optionChain[1].strike - data.optionChain[0].strike) || 50;
+      } else {
+        if (underlying === 'BANKNIFTY' || underlying === 'SENSEX') {
+          step = 100;
+        } else {
+          step = 50;
+        }
+      }
+      
       const atm = Math.round(spot / step) * step;
 
       const processedChain = data.optionChain.map(row => ({
@@ -64,10 +98,20 @@ export function useOptionChainData() {
       setSpotPrice(spot);
       setAvailableExpiries(data.expiryDates || []);
 
-      // Update Market Watch with ATM legs
+      if (underlying === 'NIFTY') {
+        useTerminalStore.getState().setNiftySpot(spot);
+      } else if (underlying === 'BANKNIFTY') {
+        useTerminalStore.getState().setBankNiftySpot(spot);
+      }
+
+      // Update Market Watch with ATM legs and NIFTY/BANKNIFTY spots
       const atmRow = processedChain.find(r => r.isATM);
       if (atmRow) {
+        const niftySpot = useTerminalStore.getState().niftySpot;
+        const bankNiftySpot = useTerminalStore.getState().bankNiftySpot;
         const mw = [
+          { symbol: 'NIFTY', ltp: niftySpot, change: 0.0, bidPrice: niftySpot, askPrice: niftySpot, volume: 0, oi: 0 },
+          { symbol: 'BANKNIFTY', ltp: bankNiftySpot, change: 0.0, bidPrice: bankNiftySpot, askPrice: bankNiftySpot, volume: 0, oi: 0 },
           { 
             symbol: `${underlying} ATM CE`, 
             ltp: atmRow.ce.ltp, 
@@ -90,8 +134,10 @@ export function useOptionChainData() {
         setMarketWatch(mw);
       }
       
-      if (!selectedExpiry && data.expiryDates && data.expiryDates.length > 0) {
-        setExpiry(data.expiryDates[0]);
+      if (data.expiryDates && data.expiryDates.length > 0) {
+        if (!selectedExpiry || !data.expiryDates.includes(selectedExpiry)) {
+          setExpiry(data.expiryDates[0]);
+        }
       }
     } catch (error) {
       console.error('[OptionChain] Fetch error:', error.message);
@@ -102,9 +148,7 @@ export function useOptionChainData() {
     fetchData(); // Initial fetch on load
 
     const intervalId = setInterval(() => {
-      if (isMarketOpen()) {
-        fetchData();
-      }
+      fetchData();
     }, 30000);
 
     return () => clearInterval(intervalId);

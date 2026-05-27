@@ -14,22 +14,90 @@ from kotak_algo.utils.api_validator import validate_positions_response, validate
 from kotak_algo.utils.logger import get_logger
 from kotak_algo.events import event_bus, Event, EventNames
 
-OPTION_REGEX = re.compile(r'^(?P<symbol>[A-Za-z]+)(?P<expiry>\d{1,2}[A-Za-z]{3}(?:\d{2,4})?)(?P<strike>\d+(?:\.\d+)?)(?P<type>CE|PE)$', re.IGNORECASE)
+OPTION_REGEX = re.compile(r'^(?P<symbol>[A-Za-z]+)(?P<middle>\d+.*)(?P<type>CE|PE)$', re.IGNORECASE)
 
-def parse_expiry(expiry_str: str) -> datetime:
-    expiry_str = expiry_str.upper()
+def parse_expiry(expiry_clean_str: str, underlying: str = "") -> datetime:
+    """
+    Parses clean YYMMM or YYMMMdd expiry strings and handles 2026 trading holidays.
+    """
+    from datetime import timedelta
+    expiry_clean_str = expiry_clean_str.upper()
+    underlying = underlying.upper()
+    now = datetime.now()
+    
+    HOLIDAYS_2026 = {
+        "2026-01-15", "2026-01-26", "2026-03-03", "2026-03-26", "2026-03-31",
+        "2026-04-03", "2026-04-14", "2026-05-01", "2026-05-28", "2026-06-26",
+        "2026-09-14", "2026-10-02", "2026-10-20", "2026-11-10", "2026-11-24",
+        "2026-12-25"
+    }
+
+    # Special holiday exception for May 2026 SENSEX/BANKEX contracts expiring on May 27 due to holiday on May 28
+    # NIFTY and BANKNIFTY expire on Tuesday, May 26 (no holiday shift required for them)
+    if "26MAY" in expiry_clean_str and underlying in ("SENSEX", "BANKEX"):
+        day_part = expiry_clean_str[5:]
+        if not day_part or day_part in ("27", "28", "29"):
+            return datetime(2026, 5, 27, 15, 30, 0)
+
     try:
-        if len(expiry_str) <= 5:
-            dt = datetime.strptime(expiry_str, "%d%b")
-            return dt.replace(year=datetime.now().year, hour=15, minute=30, second=0)
-        elif len(expiry_str) == 7:
-            dt = datetime.strptime(expiry_str, "%d%b%y")
-            return dt.replace(hour=15, minute=30, second=0)
+        # Format: YYMMM (e.g. 26MAY, 26JUN) -> Monthly option
+        if len(expiry_clean_str) == 5:
+            year_val = int("20" + expiry_clean_str[:2])
+            month_str = expiry_clean_str[2:]
+            
+            months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+            month_num = months.index(month_str) + 1
+            
+            # Find the last Tuesday of that month (or Thursday for SENSEX/BANKEX)
+            import calendar
+            last_day = calendar.monthrange(year_val, month_num)[1]
+            day_val = 0
+            target_weekday = calendar.THURSDAY if underlying in ("SENSEX", "BANKEX") else calendar.TUESDAY
+            for d in range(last_day, last_day - 7, -1):
+                if calendar.weekday(year_val, month_num, d) == target_weekday:
+                    day_val = d
+                    break
+            
+            dt = datetime(year_val, month_num, day_val, 15, 30, 0)
+            
+            # Shift preceding on holiday or weekend
+            while True:
+                dt_str = dt.strftime("%Y-%m-%d")
+                weekday = dt.weekday() # 5 = Saturday, 6 = Sunday
+                if weekday in (5, 6) or dt_str in HOLIDAYS_2026:
+                    dt = dt - timedelta(days=1)
+                else:
+                    break
+            return dt
+
+        # Format: YYMMMdd (e.g. 26MAY28) -> Weekly option
+        elif len(expiry_clean_str) == 7:
+            year_val = int("20" + expiry_clean_str[:2])
+            month_str = expiry_clean_str[2:5]
+            day_val = int(expiry_clean_str[5:])
+            
+            months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+            month_num = months.index(month_str) + 1
+            
+            dt = datetime(year_val, month_num, day_val, 15, 30, 0)
+            
+            # Shift preceding on holiday or weekend
+            while True:
+                dt_str = dt.strftime("%Y-%m-%d")
+                weekday = dt.weekday()
+                if weekday in (5, 6) or dt_str in HOLIDAYS_2026:
+                    dt = dt - timedelta(days=1)
+                else:
+                    break
+            return dt
+
         else:
-            dt = datetime.strptime(expiry_str, "%d%b%Y")
+            # Fallback
+            dt = datetime.strptime(expiry_clean_str, "%d%b%Y")
             return dt.replace(hour=15, minute=30, second=0)
-    except ValueError:
-        return datetime.now().replace(hour=15, minute=30, second=0)
+
+    except Exception:
+        return now.replace(hour=15, minute=30, second=0, microsecond=0)
 
 
 class PositionTracker:
@@ -52,6 +120,7 @@ class PositionTracker:
         self.legs: dict[str, dict[str, Any]] = {}
         self.strategy_net_premium: dict[str, float] = {}
         self.margin_used = 0.0
+        self.available_margin = 0.0
         self._running = False
         self._thread: threading.Thread | None = None
         self._listeners = []
@@ -138,16 +207,49 @@ class PositionTracker:
             match = OPTION_REGEX.match(ts_clean)
             if match:
                 underlying = match.group("symbol")
-                strike_price = float(match.group("strike"))
+                middle = match.group("middle")
                 option_type = match.group("type")
-                expiry_dt = parse_expiry(match.group("expiry"))
                 
-                spot_price = self.ltp(underlying)
-                if spot_price > 0:
-                    greeks = calculate_greeks(spot_price, strike_price, ltp, expiry_dt, option_type)
-                    payload.update(greeks)
-                else:
-                    payload.update({"iv": 0.0, "delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0})
+                # Find month
+                months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+                month_name = None
+                month_idx = -1
+                for m in months:
+                    idx = middle.find(m)
+                    if idx != -1:
+                        month_idx = idx
+                        month_name = m
+                        break
+                        
+                if month_idx != -1:
+                    year_str = middle[:month_idx]
+                    after_month = middle[month_idx + 3:]
+                    digits_only = re.sub(r'\D', '', after_month)
+                    
+                    day_val = None
+                    strike_str = after_month
+                    if len(digits_only) >= 7:
+                        day_val = int(digits_only[:2])
+                        strike_str = after_month[2:]
+                        
+                    strike_price = float(strike_str)
+                    
+                    # Parse the expiry date using our robust parser
+                    expiry_str = f"{year_str}{month_name}"
+                    if day_val is not None:
+                        expiry_str += f"{day_val:02d}"
+                        
+                    expiry_dt = parse_expiry(expiry_str, underlying)
+                    
+                    spot_price = self.ltp(underlying)
+                    if spot_price > 0:
+                        greeks = calculate_greeks(spot_price, strike_price, ltp, expiry_dt, option_type)
+                        payload.update(greeks)
+                    else:
+                        payload.update({"iv": 0.0, "delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0})
+                    
+                    payload["expiry"] = expiry_dt.strftime("%Y-%m-%d")
+                    payload["dte"] = max(0, (expiry_dt - datetime.now()).days)
                     
         self.market_data[key] = payload
         self._symbol_last_update[key] = time.monotonic()
@@ -217,6 +319,7 @@ class PositionTracker:
                 limits = self.client_provider.limits()
                 self._update_margin(limits)
                 self._merge_positions(positions)
+                self._update_index_spots()
                 
                 # --- Risk Reconciliation ---
                 if hasattr(self, 'risk_manager') and self.risk_manager:
@@ -256,11 +359,59 @@ class PositionTracker:
 
     def _update_margin(self, limits: Any) -> None:
         if isinstance(limits, dict):
-            for key in ("used_margin", "usedMargin", "margin_used", "utilized"):
+            for key in ("MarginUsed", "used_margin", "usedMargin", "margin_used", "utilized"):
                 value = limits.get(key)
                 if value is not None:
                     self.margin_used = float(value)
-                    return
+                    break
+            for key in ("Net", "available_margin", "availableMargin", "free"):
+                value = limits.get(key)
+                if value is not None:
+                    self.available_margin = float(value)
+                    break
+
+    def _update_index_spots(self) -> None:
+        try:
+            db_path = Path(__file__).resolve().parents[1] / "instruments" / "data" / "contracts.db"
+            import sqlite3
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.cursor()
+            
+            for symbol in ("NIFTY", "BANKNIFTY"):
+                cursor.execute(
+                    "SELECT token FROM contracts WHERE symbol = ? AND instrument_type = 'FUTIDX' AND expiry >= DATE('now') ORDER BY expiry ASC LIMIT 1",
+                    (symbol,)
+                )
+                row = cursor.fetchone()
+                if row:
+                    token = row[0]
+                    try:
+                        quotes = self.client_provider.quotes(instrument_tokens=[{"instrument_token": token, "exchange_segment": "nse_fo"}])
+                        if quotes:
+                            messages = []
+                            if isinstance(quotes, list):
+                                messages = quotes
+                            elif isinstance(quotes, dict):
+                                messages = quotes.get("message", [])
+                                if not isinstance(messages, list):
+                                    messages = [messages]
+                            
+                            for msg in messages:
+                                if isinstance(msg, dict) and str(msg.get("instrument_token") or msg.get("tk") or msg.get("exchange_token")) == str(token):
+                                    ltp = float(msg.get("last_traded_price") or msg.get("ltp") or 0.0)
+                                    if ltp > 0:
+                                        self.update_market_data(
+                                            trading_symbol=symbol,
+                                            instrument_token=token,
+                                            ltp=ltp,
+                                            bid=ltp - 0.05,
+                                            ask=ltp + 0.05
+                                        )
+                    except Exception as e:
+                        self.logger.warning("failed_to_fetch_index_spot_quote", symbol=symbol, error=str(e))
+            conn.close()
+        except Exception as exc:
+            self.logger.warning("failed_to_update_index_spots", error=str(exc))
 
     def _merge_positions(self, positions: list) -> None:
         for row in positions:
@@ -268,16 +419,47 @@ class PositionTracker:
             if not symbol:
                 continue
             leg = self.legs.setdefault(symbol, {})
-            for price_key in ("avgPrice", "average_price", "buyAvg", "sellAvg"):
-                if row.get(price_key) is not None and not leg.get("entry_price"):
-                    leg["entry_price"] = float(row[price_key])
-                    break
-            for qty_key in ("netQty", "quantity", "net_quantity"):
-                if row.get(qty_key) is not None:
-                    qty = abs(int(float(row[qty_key])))
-                    leg["quantity"] = qty
-                    leg["status"] = "OPEN" if qty > 0 else "CLOSED"
-                    break
+            
+            # Parse Quantity (Kotak Neo specific fields or standard fallback)
+            cf_buy = int(row.get("cfBuyQty", 0) or 0)
+            fl_buy = int(row.get("flBuyQty", 0) or 0)
+            cf_sell = int(row.get("cfSellQty", 0) or 0)
+            fl_sell = int(row.get("flSellQty", 0) or 0)
+            
+            total_buy_qty = cf_buy + fl_buy
+            total_sell_qty = cf_sell + fl_sell
+            net_qty = total_buy_qty - total_sell_qty
+            
+            # Standard fallback if Kotak keys are not used
+            if not total_buy_qty and not total_sell_qty:
+                for qty_key in ("netQty", "quantity", "net_quantity"):
+                    if row.get(qty_key) is not None:
+                        net_qty = int(float(row[qty_key]))
+                        total_buy_qty = abs(net_qty) if net_qty > 0 else 0
+                        total_sell_qty = abs(net_qty) if net_qty < 0 else 0
+                        break
+                        
+            qty = abs(net_qty)
+            leg["quantity"] = qty
+            leg["status"] = "OPEN" if qty > 0 else "CLOSED"
+            leg["side"] = "SHORT" if net_qty < 0 else "LONG"
+            
+            # Parse Entry Price (Kotak Neo specific fields or standard fallback)
+            entry_price = 0.0
+            if net_qty > 0 and total_buy_qty > 0:
+                buy_amt = float(row.get("cfBuyAmt", 0) or 0) + float(row.get("buyAmt", 0) or 0)
+                entry_price = buy_amt / total_buy_qty
+            elif net_qty < 0 and total_sell_qty > 0:
+                sell_amt = float(row.get("cfSellAmt", 0) or 0) + float(row.get("sellAmt", 0) or 0)
+                entry_price = sell_amt / total_sell_qty
+                
+            if entry_price == 0.0:
+                for price_key in ("avgPrice", "average_price", "buyAvg", "sellAvg"):
+                    if row.get(price_key) is not None:
+                        entry_price = float(row[price_key])
+                        break
+                        
+            leg["entry_price"] = entry_price
 
     def print_table(self) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")

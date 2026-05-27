@@ -309,7 +309,6 @@ class NeoBrokerClient:
             self.client.quotes,
             instrument_tokens=instrument_tokens,
             quote_type=quote_type,
-            isIndex=is_index,
         )
 
     def search_scrip(self, exchange_segment: str, symbol: str = "", expiry: str = "", option_type: str = "", strike_price: str = "") -> Any:

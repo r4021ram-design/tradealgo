@@ -41,6 +41,7 @@ export const StrategyBuilder = () => {
   const { legs, updateLeg, loadStrategyPreset, clearLegs } = usePortfolioStore();
   const optionChain = useTerminalStore(s => s.optionChain);
   const liveSpotPrice = useTerminalStore(s => s.spotPrice);
+  const selectedUnderlying = useTerminalStore(s => s.selectedUnderlying);
   const [spotPrice, setSpotPrice] = useState(liveSpotPrice || 22000);
   const [selectedGroup, setSelectedGroup] = useState('Volatility');
   const [selectedStrategy, setSelectedStrategy] = useState('Iron Condor');
@@ -49,15 +50,18 @@ export const StrategyBuilder = () => {
   const handleStrategyChange = (e) => {
     const strategy = e.target.value;
     setSelectedStrategy(strategy);
-    loadStrategyPreset(strategy, spotPrice, optionChain);
+    loadStrategyPreset(strategy, liveSpotPrice || spotPrice, optionChain);
   };
 
-  // Auto-load default strategy on first mount
+  // Auto-load default strategy on first mount or when live spot price / option chain becomes available
   useEffect(() => {
-    if (legs.length === 0) {
-      loadStrategyPreset(selectedStrategy, liveSpotPrice || 22000, optionChain);
+    if (liveSpotPrice && optionChain && optionChain.length > 0) {
+      const isDefault = legs.length === 0 || legs.every(l => l.entryPrice === 100);
+      if (isDefault) {
+        loadStrategyPreset(selectedStrategy, liveSpotPrice, optionChain);
+      }
     }
-  }, []);
+  }, [liveSpotPrice, optionChain, selectedStrategy]);
 
   // Sync with live spot price
   useEffect(() => {
@@ -65,6 +69,13 @@ export const StrategyBuilder = () => {
       setSpotPrice(liveSpotPrice);
     }
   }, [liveSpotPrice]);
+
+  // Reload strategy preset when underlying changes
+  useEffect(() => {
+    if (liveSpotPrice && optionChain && optionChain.length > 0) {
+      loadStrategyPreset(selectedStrategy, liveSpotPrice, optionChain);
+    }
+  }, [selectedUnderlying]);
 
   const chartData = useMemo(() => {
     if (legs.length === 0) return [];
@@ -74,17 +85,32 @@ export const StrategyBuilder = () => {
     const maxStrike = Math.max(...strikes) || spotPrice;
     
     const range = Math.max(maxStrike - minStrike, spotPrice * 0.1);
-    const startX = Math.floor((minStrike - range * 0.5) / 50) * 50;
-    const endX = Math.ceil((maxStrike + range * 0.5) / 50) * 50;
+    
+    // Determine step size dynamically based on underlying and spot price scale
+    let step = 50;
+    if (selectedUnderlying === 'BANKNIFTY' || selectedUnderlying === 'SENSEX') {
+      step = 100;
+    } else if (spotPrice < 1000) {
+      step = 5;
+    } else if (spotPrice < 5000) {
+      step = 10;
+    } else {
+      step = 50;
+    }
+
+    const startX = Math.floor((minStrike - range * 0.5) / step) * step;
+    const endX = Math.ceil((maxStrike + range * 0.5) / step) * step;
     
     const data = [];
-    // Increased resolution: 2 point increments
-    for (let s = startX; s <= endX; s += 2) {
+    // Dynamically calculate increment to keep around 100 data points for Recharts rendering
+    const totalSteps = 100;
+    const increment = Math.max(1, Math.round((endX - startX) / totalSteps));
+    for (let s = startX; s <= endX; s += increment) {
       const pnl = calculateExpirationPayoff(legs, s);
       data.push({ spot: s, pnl });
     }
     return data;
-  }, [legs, spotPrice]);
+  }, [legs, spotPrice, selectedUnderlying]);
 
   const metrics = useMemo(() => {
     if (chartData.length === 0) return { maxProfit: 0, maxLoss: 0, netPremium: 0, keyPoints: [] };
@@ -164,7 +190,7 @@ export const StrategyBuilder = () => {
                         if (newGroup !== 'All') {
                           const firstStrategy = STRATEGY_GROUPS[newGroup][0];
                           setSelectedStrategy(firstStrategy);
-                          loadStrategyPreset(firstStrategy, spotPrice, optionChain);
+                          loadStrategyPreset(firstStrategy, liveSpotPrice || spotPrice, optionChain);
                         }
                       }}
                     >

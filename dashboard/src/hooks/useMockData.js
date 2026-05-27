@@ -9,6 +9,9 @@ import { getApiUrl } from '../utils/api';
 export function useLiveData() {
   const positions = useTerminalStore((state) => state.positions);
   const setPositions = useTerminalStore((state) => state.setPositions);
+  const setMargins = useTerminalStore((state) => state.setMargins);
+  const setNiftySpot = useTerminalStore((state) => state.setNiftySpot);
+  const setBankNiftySpot = useTerminalStore((state) => state.setBankNiftySpot);
   
   const [metrics, setMetrics] = useState({
     totalPnl: 0,
@@ -31,6 +34,9 @@ export function useLiveData() {
           const ltp = data.market_data[symbol]?.ltp || leg.entry_price || 0;
           const delta = data.market_data[symbol]?.delta || 0;
           const theta = data.market_data[symbol]?.theta || 0;
+          const expiry = data.market_data[symbol]?.expiry || null;
+          const dte = data.market_data[symbol]?.dte !== undefined ? data.market_data[symbol]?.dte : null;
+          const iv = data.market_data[symbol]?.iv || null;
           
           let netQty = 0;
           if (leg.status === "OPEN") {
@@ -50,12 +56,21 @@ export function useLiveData() {
             realizedPnl: leg.realized_pnl || 0,
             delta,
             theta,
-            status: leg.status || 'CLOSED'
+            status: leg.status || 'CLOSED',
+            expiry,
+            dte,
+            iv: iv ? iv / 100 : null
           };
         });
 
         // Dispatch to Zustand store
         setPositions(mapped);
+        setMargins(data.available_margin || 0, data.margin_used || 0);
+
+        const niftyLtp = data.market_data["NIFTY"]?.ltp;
+        const bankniftyLtp = data.market_data["BANKNIFTY"]?.ltp;
+        if (niftyLtp > 0) setNiftySpot(niftyLtp);
+        if (bankniftyLtp > 0) setBankNiftySpot(bankniftyLtp);
 
         setMetrics({
           totalPnl: data.total_pnl || 0,

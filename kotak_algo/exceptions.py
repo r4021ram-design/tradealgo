@@ -163,7 +163,8 @@ SESSION_EXPIRED_SIGNALS = frozenset({
     "unauthorized",
     "not logged in",
     "login required",
-    "expired",
+    "complete the 2fa",
+    "2fa process",
     "401",
     "403",
     "access denied",
@@ -172,5 +173,31 @@ SESSION_EXPIRED_SIGNALS = frozenset({
 
 def looks_like_session_expired(response: Any) -> bool:
     """Heuristic check: does the API response hint at an expired session?"""
+    if response is None:
+        return False
+
+    # If it is a dictionary, inspect common error keys first
+    if isinstance(response, dict):
+        err_fields = [
+            response.get("Error Message"),
+            response.get("errorMessage"),
+            response.get("error"),
+            response.get("errMsg"),
+            response.get("message"),
+            response.get("detail"),
+        ]
+        for val in err_fields:
+            if val:
+                val_str = str(val).lower()
+                if any(sig in val_str for sig in SESSION_EXPIRED_SIGNALS):
+                    return True
+        # Check string values in the dictionary
+        for v in response.values():
+            if isinstance(v, str):
+                v_str = v.lower()
+                if any(sig in v_str for sig in SESSION_EXPIRED_SIGNALS):
+                    return True
+        return False
+
     text = str(response).lower()
     return any(sig in text for sig in SESSION_EXPIRED_SIGNALS)

@@ -97,21 +97,124 @@ def validate_positions_response(response: Any) -> list[dict]:
     if response is None:
         return []
 
-    if isinstance(response, dict):
-        # Some brokers wrap in {"data": [...]}
-        inner = response.get("data") or response.get("positions")
-        if isinstance(inner, list):
-            return inner
-        stat = str(response.get("stat", "")).lower()
-        if stat in ("not_ok", "error"):
-            err = response.get("errMsg", response.get("message", "Unknown"))
-            LOGGER.warning("positions_response_error", error=err)
-            return []
-
     if isinstance(response, list):
         return response
 
+    if isinstance(response, dict):
+        # Some brokers wrap in {"data": [...]} or {"positions": [...]}
+        inner = response.get("data") or response.get("positions")
+        if isinstance(inner, list):
+            return inner
+
+        # Check for explicit error messages
+        err_msg = (
+            response.get("Error Message")
+            or response.get("errorMessage")
+            or response.get("error")
+            or response.get("errMsg")
+            or response.get("message")
+        )
+        
+        stat = str(response.get("stat", "")).lower()
+        
+        # If there is a stat = "ok" and data is empty/missing, it means no positions
+        if stat in ("ok", "success") and ("data" in response or "positions" in response) and not inner:
+            return []
+
+        # If it's a known error indicating no positions or empty list
+        if err_msg:
+            err_lower = str(err_msg).lower()
+            if any(
+                pat in err_lower
+                for pat in (
+                    "no position",
+                    "no data",
+                    "no record",
+                    "empty",
+                    "no transaction",
+                    "no active position",
+                )
+            ):
+                LOGGER.info("positions_empty", message=err_msg)
+                return []
+            
+            # If there's an error message but it's not benign
+            raise APIResponseError(f"Positions API returned error: {err_msg}", raw_response=response)
+
+        if stat in ("not_ok", "error"):
+            err_desc = err_msg or "Unknown error"
+            LOGGER.warning("positions_response_error", error=err_desc)
+            return []
+
+        # If it is a dict but has a single key or doesn't have data, it could be malformed
+        raise APIResponseError("Positions dictionary response missing list data", raw_response=response)
+
     raise APIResponseError("Unexpected positions response type", raw_response=response)
+
+
+# ── Cancellation Response ────────────────────────────────────────
+
+def validate_cancel_response(response: Any, *, context: str = "") -> str:
+    """
+    Validate a cancel_order response.
+
+    Returns the order_id/status on success.
+    Raises SessionExpiredError, OrderRejectedError, or APIResponseError.
+    """
+    if looks_like_session_expired(response):
+        raise SessionExpiredError(
+            f"Session expired during {context or 'cancel call'}",
+            details={"raw": repr(response)[:300]},
+        )
+
+    # Check for explicit error fields
+    if isinstance(response, dict):
+        stat = str(response.get("stat", "")).lower()
+        error_msg = str(
+            response.get("errMsg")
+            or response.get("error")
+            or response.get("message")
+            or response.get("Error Message")
+            or ""
+        ).lower()
+
+        # If it failed/was rejected
+        if stat in ("not_ok", "error") or "rejected" in error_msg:
+            # Benign rejection cases (e.g. order is already filled or cancelled)
+            if any(s in error_msg for s in ("already filled", "already cancelled", "not pending", "completed")):
+                LOGGER.info("order_cancel_benign_failure", error=error_msg)
+                # Return the order_id if present, or "benign_failure"
+                for key in ("nOrdNo", "order_id", "orderId"):
+                    val = response.get(key)
+                    if isinstance(val, str) and val.strip():
+                        return val.strip()
+                return "benign_failure"
+            
+            raise OrderRejectedError(
+                f"Cancel order rejected: {error_msg}",
+                order_payload=response,
+            )
+
+        # Extract order id
+        for key in ("nOrdNo", "order_id", "orderId"):
+            val = response.get(key)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+
+        nested = response.get("data")
+        if isinstance(nested, dict):
+            for key in ("nOrdNo", "order_id", "orderId"):
+                val = nested.get(key)
+                if isinstance(val, str) and val.strip():
+                    return val.strip()
+
+    if isinstance(response, str) and response.strip():
+        return response.strip()
+
+    raise APIResponseError(
+        f"Cannot extract order_id/status from {context or 'cancel'} response",
+        raw_response=response,
+    )
 
 
 # ── Market Data Tick ─────────────────────────────────────────────

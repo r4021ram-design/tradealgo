@@ -19,3 +19,298 @@ https://nsearchives.nseindia.com:443 "GET /content/fo/NSE_FO_contract_21052026.c
 NumExpr defaulting to 4 threads.
 NumExpr defaulting to 4 threads.
 NumExpr defaulting to 4 threads.
+Using selector: SelectSelector
+{"event": "instrument_db_initialized", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:51.250102", "level": "info"}
+{"component": "algo_app", "event": "app_starting", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:51.261123", "level": "info"}
+{"event": "algo_app_started_in_background", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:51.261319", "level": "info"}
+{"component": "neo_client", "event": "totp_login_started", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:51.261632", "level": "info"}
+{"event": "starting_instrument_sync", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:51.262055", "level": "info"}
+{"component": "neo_client", "error": "Either UAT or PROD in Environment accepted", "event": "authentication_failed", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:51.262474", "level": "error"}
+{"error": "Broker authentication failed: Either UAT or PROD in Environment accepted", "event": "algo_app_start_failed", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:51.263415", "level": "error"}
+Starting new HTTPS connection (1): www.nseindia.com:443
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 665
+{"event": "nse_session_warmed_up", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:53.322445", "level": "info"}
+Starting new HTTPS connection (1): nsearchives.nseindia.com:443
+https://nsearchives.nseindia.com:443 "GET /content/fo/NSE_FO_contract_21052026.csv.gz HTTP/1.1" 404 3425
+{"attempt": 1, "error": "404 Client Error: Not Found for url: https://nsearchives.nseindia.com/content/fo/NSE_FO_contract_21052026.csv.gz", "event": "nse_request_error", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:53.891696", "level": "warning"}
+https://nsearchives.nseindia.com:443 "GET /content/fo/NSE_FO_contract_21052026.csv.gz HTTP/1.1" 404 3425
+{"attempt": 2, "error": "404 Client Error: Not Found for url: https://nsearchives.nseindia.com/content/fo/NSE_FO_contract_21052026.csv.gz", "event": "nse_request_error", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:55.925414", "level": "warning"}
+https://nsearchives.nseindia.com:443 "GET /content/fo/NSE_FO_contract_21052026.csv.gz HTTP/1.1" 404 3425
+{"attempt": 3, "error": "404 Client Error: Not Found for url: https://nsearchives.nseindia.com/content/fo/NSE_FO_contract_21052026.csv.gz", "event": "nse_request_error", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:57.964317", "level": "warning"}
+{"url": "https://nsearchives.nseindia.com/content/fo/NSE_FO_contract_21052026.csv.gz", "error": "404 Client Error: Not Found for url: https://nsearchives.nseindia.com/content/fo/NSE_FO_contract_21052026.csv.gz", "event": "fetch_contract_master_failed", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:59.965059", "level": "error"}
+{"event": "contract_master_unavailable_falling_back_to_option_chains", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:32:59.965789", "level": "info"}
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=FINNIFTY HTTP/1.1" 200 2
+{"symbol": "FINNIFTY", "event": "option_chain_empty", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:33:00.006722", "level": "warning"}
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=BANKNIFTY HTTP/1.1" 200 2
+{"symbol": "BANKNIFTY", "event": "option_chain_empty", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:33:00.036253", "level": "warning"}
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=MIDCPNIFTY HTTP/1.1" 200 2
+{"symbol": "MIDCPNIFTY", "event": "option_chain_empty", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:33:00.078427", "level": "warning"}
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+{"symbol": "NIFTY", "event": "option_chain_empty", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:33:00.103000", "level": "warning"}
+{"event": "sync_failed_no_data", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:33:00.106284", "level": "error"}
+Starting new HTTPS connection (1): www.nseindia.com:443
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 665
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 665
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 665
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 665
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 665
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 665
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 665
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 665
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 664
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 664
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: None", "event": "free_option_chain_error", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:35:24.749982", "level": "error"}
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 664
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: None", "event": "free_option_chain_error", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:35:39.072289", "level": "error"}
+{"component": "order_manager", "symbol": "NIFTY  22000 CE", "event": "contract_not_found_in_master_skipping_master_checks", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:39:50.583530", "level": "warning"}
+{"component": "position_tracker", "trading_symbol": "NIFTY  22000 CE", "transaction_type": "S", "fill_price": 100.0, "event": "fill_recorded", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:39:50.583829", "level": "info"}
+{"component": "order_manager", "order_id": "paper-c0ebea1fc6d0", "status": "filled", "price": "0", "fill_price": 100.0, "trading_symbol": "NIFTY  22000 CE", "transaction_type": "S", "quantity": 1, "exchange_segment": "nse_fo", "product": "NRML", "order_type": "MKT", "trigger_price": "0", "submitted_at": "2026-05-21T15:39:50.583804", "event": "paper_order_filled", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:39:50.583972", "level": "info"}
+{"component": "order_manager", "trading_symbol": "NIFTY  22000 CE", "txn_type": "S", "order_id": "paper-c0ebea1fc6d0", "event": "arbitrary_order_placed", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:39:50.584107", "level": "info"}
+{"component": "order_manager", "symbol": "NIFTY  22100 CE", "event": "contract_not_found_in_master_skipping_master_checks", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:39:50.586472", "level": "warning"}
+{"component": "position_tracker", "trading_symbol": "NIFTY  22100 CE", "transaction_type": "B", "fill_price": 100.0, "event": "fill_recorded", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:39:50.586703", "level": "info"}
+{"component": "order_manager", "order_id": "paper-a253f879dd23", "status": "filled", "price": "0", "fill_price": 100.0, "trading_symbol": "NIFTY  22100 CE", "transaction_type": "B", "quantity": 1, "exchange_segment": "nse_fo", "product": "NRML", "order_type": "MKT", "trigger_price": "0", "submitted_at": "2026-05-21T15:39:50.586674", "event": "paper_order_filled", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:39:50.586836", "level": "info"}
+{"component": "order_manager", "trading_symbol": "NIFTY  22100 CE", "txn_type": "B", "order_id": "paper-a253f879dd23", "event": "arbitrary_order_placed", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:39:50.586971", "level": "info"}
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 666
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 666
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 666
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+Starting new HTTPS connection (2): www.nseindia.com:443
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 666
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 666
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 666
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 666
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 637
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 637
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: None", "event": "free_option_chain_error", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:41:19.644797", "level": "error"}
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 637
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: None", "event": "free_option_chain_error", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:41:39.749784", "level": "error"}
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+Resetting dropped connection: www.nseindia.com
+Starting new HTTPS connection (3): www.nseindia.com:443
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 366
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 629
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 629
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 629
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: None", "event": "free_option_chain_error", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:48:42.394526", "level": "error"}
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 370
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET /api/option-chain-indices?symbol=NIFTY HTTP/1.1" 200 2
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 366
+https://www.nseindia.com:443 "GET / HTTP/1.1" 403 368
+Resetting dropped connection: www.nseindia.com
+Resetting dropped connection: www.nseindia.com
+Resetting dropped connection: www.nseindia.com
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 631
+https://www.nseindia.com:443 "GET /api/marketStatus HTTP/1.1" 200 634
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /market-data/option-chain HTTP/1.1" 301 47
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+https://www.nseindia.com:443 "GET /option-chain HTTP/1.1" 200 None
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: None", "event": "free_option_chain_error", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:49:02.310671", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: None", "event": "free_option_chain_error", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:49:03.600414", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: None", "event": "free_option_chain_error", "session_id": "817d0d81", "trading_day": "2026-05-21", "timestamp": "2026-05-21T15:49:03.724012", "level": "error"}

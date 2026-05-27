@@ -5,4 +5,4 @@ kotak_algo/data/
 kotak_algo/snapshots/
 __pycache__/
 *.pyc
-
+data/

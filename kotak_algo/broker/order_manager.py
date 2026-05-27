@@ -11,7 +11,7 @@ from kotak_algo.exceptions import (
     OrderRejectedError,
     SessionExpiredError,
 )
-from kotak_algo.utils.api_validator import validate_order_response
+from kotak_algo.utils.api_validator import validate_order_response, validate_cancel_response
 from kotak_algo.broker.pre_trade_validator import PreTradeValidator
 from kotak_algo.utils.logger import get_logger
 from kotak_algo.events import event_bus, Event, EventNames
@@ -247,9 +247,14 @@ class OrderManager:
             self.logger.info("paper_order_cancelled", order_id=order_id)
             return {"status": "cancelled", "order_id": order_id}
 
-        response = self.broker.cancel_order(order_id=order_id)
-        self.logger.info("order_cancelled", order_id=order_id, response=response)
-        return response
+        try:
+            response = self.broker.cancel_order(order_id=order_id)
+            validate_cancel_response(response, context="cancel_order")
+            self.logger.info("order_cancelled", order_id=order_id, response=response)
+            return response
+        except Exception as exc:
+            self.logger.error("order_cancel_failed", order_id=order_id, error=str(exc))
+            raise
 
     def cancel_all_pending(self) -> None:
         with self._lock:
@@ -300,6 +305,7 @@ class OrderManager:
                     product=payload["product"],
                     order_type=payload["order_type"],
                 )
+                validate_order_response(modified, context="modify_order")
                 self.logger.info("limit_order_modified", order_id=order["order_id"], attempt=attempt, new_price=new_mid, response=modified)
                 history = self.broker.order_history(order_id=order["order_id"])
                 if self._is_filled(history):

@@ -1,0 +1,658 @@
+{"component": "algo_app", "error": "Could not parse scrip master response: {'Error Message': 'Complete the 2fa process before accessing this application'}", "event": "nse_reference_refresh_failed", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:05:52.466822", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\main.py\", line 198, in _refresh_nse_reference\n    metadata_path = self.nse_reference.refresh()\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\nse_reference.py\", line 46, in refresh\n    metadata = self._build_metadata(downloaded_files)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\nse_reference.py\", line 75, in _build_metadata\n    kotak_rows = self._load_kotak_master(\"nse_fo\")\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\nse_reference.py\", line 230, in _load_kotak_master\n    path = self.broker.scrip_master_path(exchange_segment)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\broker\\neo_client.py\", line 215, in scrip_master_path\n    path = self._extract_path(raw_response)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\broker\\neo_client.py\", line 239, in _extract_path\n    raise ValueError(f\"Could not parse scrip master response: {raw_response!r}\")\nValueError: Could not parse scrip master response: {'Error Message': 'Complete the 2fa process before accessing this application'}"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\main.py", line 198, in _refresh_nse_reference
+    metadata_path = self.nse_reference.refresh()
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\nse_reference.py", line 46, in refresh
+    metadata = self._build_metadata(downloaded_files)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\nse_reference.py", line 75, in _build_metadata
+    kotak_rows = self._load_kotak_master("nse_fo")
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\nse_reference.py", line 230, in _load_kotak_master
+    path = self.broker.scrip_master_path(exchange_segment)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\broker\neo_client.py", line 215, in scrip_master_path
+    path = self._extract_path(raw_response)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\broker\neo_client.py", line 239, in _extract_path
+    raise ValueError(f"Could not parse scrip master response: {raw_response!r}")
+ValueError: Could not parse scrip master response: {'Error Message': 'Complete the 2fa process before accessing this application'}
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 1, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:05:52.473520", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"error": "Could not parse scrip master response: {'Error Message': 'Complete the 2fa process before accessing this application'}", "event": "algo_app_start_failed", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:05:55.480405", "level": "error"}
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 2, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:05:57.482769", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 3, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:02.638972", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 4, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:07.759694", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 5, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:12.953310", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "count": 5, "event": "poll_failure_threshold_reached", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:13.125058", "level": "error"}
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 6, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:18.155968", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 7, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:23.423319", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 8, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:28.892386", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 9, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:33.968736", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 10, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:38.978857", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 11, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:43.980944", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 12, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:48.985560", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"details": {"freshness": {"valid": false, "last_sync": "2026-05-14T17:24:03.919798", "age_hours": 260.2}, "lot_sizes": {"errors": 0, "sanity_failures": ["NIFTY lot size mismatch: expected 25, got 65", "BANKNIFTY lot size mismatch: expected 15, got 30", "FINNIFTY lot size mismatch: expected 40, got 60"], "examples": []}, "expiry_mapping": {"errors": 0, "examples": []}, "symbol_token_mapping": {"missing_tokens": 0, "duplicate_tokens": 0, "examples": []}, "summary": "FAILED"}, "event": "instrument_sync_validation_failed", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:53.360864", "level": "error"}
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 13, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:53.987654", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 14, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:06:58.994016", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 15, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:07:03.996872", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 16, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:07:08.999588", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 17, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:07:14.002152", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 18, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:07:19.006968", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 19, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:07:24.011522", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 20, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:07:29.013656", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 21, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:07:34.019196", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 22, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:07:39.026951", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 23, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:07:44.034454", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 24, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:07:49.037099", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 25, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:07:54.039015", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 26, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:07:59.041569", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 27, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:08:04.043784", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 28, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:08:09.045621", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 29, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:08:14.051252", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 30, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:08:19.053695", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 31, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:08:24.073291", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 32, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:08:29.075432", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 33, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:08:34.077806", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 34, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:08:39.080731", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 35, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:08:44.084902", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 36, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:08:49.087912", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 37, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:08:54.091889", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 38, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:08:59.095817", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 39, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:09:04.099638", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 40, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:09:09.101341", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 41, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:09:14.103504", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 42, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:09:19.105423", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 43, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:09:24.108609", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 44, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:09:29.110338", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 45, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:09:34.112246", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 46, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:09:39.114616", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 47, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:09:44.117277", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 48, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:09:49.119718", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 49, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:09:54.121566", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 50, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:09:59.124373", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 51, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:10:04.127025", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 52, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:10:09.130372", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 53, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:10:14.132549", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 54, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:10:19.136042", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 55, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:10:24.137842", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 56, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:10:29.140297", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 57, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:10:34.144135", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 58, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:10:39.149396", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 59, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:10:44.151094", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 60, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:10:49.152942", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 61, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:10:54.154762", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 62, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:10:59.157167", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 63, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:11:04.159072", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 64, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:11:09.163033", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 65, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:11:14.165079", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 66, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:11:19.168516", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 67, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:11:24.173169", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 68, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:11:29.175738", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 69, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:11:34.177584", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 70, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:11:39.180212", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 71, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:11:44.182901", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 72, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:11:49.186218", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 73, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:11:54.188875", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 74, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:11:59.190842", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 75, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:12:04.193383", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 76, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:12:09.198571", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 77, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:12:14.200939", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 78, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:12:19.203465", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "position_tracker", "error": "Unexpected positions response type", "failures": 79, "event": "position_poll_error", "session_id": "2c87468a", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:12:24.205598", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\position_tracker.py\", line 216, in _poll_positions\n    positions = validate_positions_response(positions_raw)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\utils\\api_validator.py\", line 114, in validate_positions_response\n    raise APIResponseError(\"Unexpected positions response type\", raw_response=response)\nkotak_algo.exceptions.APIResponseError: Unexpected positions response type"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\position_tracker.py", line 216, in _poll_positions
+    positions = validate_positions_response(positions_raw)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\utils\api_validator.py", line 114, in validate_positions_response
+    raise APIResponseError("Unexpected positions response type", raw_response=response)
+kotak_algo.exceptions.APIResponseError: Unexpected positions response type
+{"component": "algo_app", "error": "[Errno 22] Invalid argument: 'C:\\\\Users\\\\admin\\\\Desktop\\\\kotakalgo\\\\https:\\\\lapi.kotaksecurities.com\\\\wso2-scripmaster\\\\v1\\\\prod\\\\2026-05-25\\\\transformed\\\\nse_fo.csv'", "event": "nse_reference_refresh_failed", "session_id": "e93f9aa4", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:12:42.254380", "level": "error", "exception": "Traceback (most recent call last):\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\main.py\", line 198, in _refresh_nse_reference\n    metadata_path = self.nse_reference.refresh()\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\nse_reference.py\", line 46, in refresh\n    metadata = self._build_metadata(downloaded_files)\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\nse_reference.py\", line 75, in _build_metadata\n    kotak_rows = self._load_kotak_master(\"nse_fo\")\n  File \"C:\\Users\\admin\\Desktop\\kotakalgo\\kotak_algo\\core\\nse_reference.py\", line 231, in _load_kotak_master\n    with path.open(\"r\", encoding=\"utf-8-sig\", newline=\"\") as handle:\n         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Python314\\Lib\\pathlib\\__init__.py\", line 776, in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nOSError: [Errno 22] Invalid argument: 'C:\\\\Users\\\\admin\\\\Desktop\\\\kotakalgo\\\\https:\\\\lapi.kotaksecurities.com\\\\wso2-scripmaster\\\\v1\\\\prod\\\\2026-05-25\\\\transformed\\\\nse_fo.csv'"}
+Traceback (most recent call last):
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\main.py", line 198, in _refresh_nse_reference
+    metadata_path = self.nse_reference.refresh()
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\nse_reference.py", line 46, in refresh
+    metadata = self._build_metadata(downloaded_files)
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\nse_reference.py", line 75, in _build_metadata
+    kotak_rows = self._load_kotak_master("nse_fo")
+  File "C:\Users\admin\Desktop\kotakalgo\kotak_algo\core\nse_reference.py", line 231, in _load_kotak_master
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 776, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 22] Invalid argument: 'C:\\Users\\admin\\Desktop\\kotakalgo\\https:\\lapi.kotaksecurities.com\\wso2-scripmaster\\v1\\prod\\2026-05-25\\transformed\\nse_fo.csv'
+{"error": "[Errno 22] Invalid argument: 'C:\\\\Users\\\\admin\\\\Desktop\\\\kotakalgo\\\\https:\\\\lapi.kotaksecurities.com\\\\wso2-scripmaster\\\\v1\\\\prod\\\\2026-05-25\\\\transformed\\\\nse_fo.csv'", "event": "algo_app_start_failed", "session_id": "e93f9aa4", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:12:45.293832", "level": "error"}
+{"error": "No rows found for underlying=NIFTY", "event": "algo_app_start_failed", "session_id": "bbd88860", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:13:51.946660", "level": "error"}
+{"details": {"freshness": {"valid": false, "last_sync": "2026-05-14T17:24:03.919798", "age_hours": 260.3}, "lot_sizes": {"errors": 0, "sanity_failures": ["NIFTY lot size mismatch: expected 25, got 65", "BANKNIFTY lot size mismatch: expected 15, got 30", "FINNIFTY lot size mismatch: expected 40, got 60"], "examples": []}, "expiry_mapping": {"errors": 0, "examples": []}, "symbol_token_mapping": {"missing_tokens": 0, "duplicate_tokens": 0, "examples": []}, "summary": "FAILED"}, "event": "instrument_sync_validation_failed", "session_id": "bbd88860", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:14:10.348093", "level": "error"}
+error from callback <bound method StartServer.on_message of <neo_api_client.HSWebSocketLib.StartServer object at 0x00000243F671E510>>: socket is already closed.
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x00000243F66BEE90>>: socket is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('socket is already closed.')", "event": "websocket_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:18:09.925582", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x00000243B15B8690>>: Connection is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection is already closed.')", "event": "websocket_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:18:09.938327", "level": "error"}
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('socket is already closed.')", "event": "websocket_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:18:10.842950", "level": "error"}
+{"component": "websocket", "error_message": "AttributeError(\"'NoneType' object has no attribute 'sock'\")", "event": "websocket_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:18:10.926981", "level": "error"}
+{"component": "websocket", "error_message": "AttributeError(\"'NoneType' object has no attribute 'sock'\")", "event": "websocket_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:18:10.939579", "level": "error"}
+{"details": {"freshness": {"valid": false, "last_sync": "2026-05-14T17:24:03.919798", "age_hours": 260.4}, "lot_sizes": {"errors": 0, "sanity_failures": ["NIFTY lot size mismatch: expected 25, got 65", "BANKNIFTY lot size mismatch: expected 15, got 30", "FINNIFTY lot size mismatch: expected 40, got 60"], "examples": []}, "expiry_mapping": {"errors": 0, "examples": []}, "symbol_token_mapping": {"missing_tokens": 0, "duplicate_tokens": 0, "examples": []}, "summary": "FAILED"}, "event": "instrument_sync_validation_failed", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:18:25.440800", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: 404 Client Error: Not Found for url: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY", "event": "free_option_chain_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:19:44.148592", "level": "error"}
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection to remote host was lost.')", "event": "websocket_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:20:30.522757", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x00000243F671E510>>: Connection is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection is already closed.')", "event": "websocket_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:20:36.296439", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: 404 Client Error: Not Found for url: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY", "event": "free_option_chain_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:24:32.239045", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x00000243F671E510>>: Connection is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection is already closed.')", "event": "websocket_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:24:35.590827", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: 404 Client Error: Not Found for url: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY", "event": "free_option_chain_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:24:51.511479", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: 404 Client Error: Not Found for url: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY", "event": "free_option_chain_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:25:04.630799", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: 404 Client Error: Not Found for url: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY", "event": "free_option_chain_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:25:04.780526", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x00000243F671E510>>: Connection is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection is already closed.')", "event": "websocket_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:28:35.707377", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x00000243F671E510>>: Connection is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection is already closed.')", "event": "websocket_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:30:45.921858", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x00000243F671E510>>: Connection is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection is already closed.')", "event": "websocket_error", "session_id": "36b81c0e", "trading_day": "2026-05-25", "timestamp": "2026-05-25T19:32:56.089822", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x0000029008A912B0>>: socket is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('socket is already closed.')", "event": "websocket_error", "session_id": "fd1d6ef2", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:03:41.734968", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x0000029008BC2FD0>>: Connection is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection is already closed.')", "event": "websocket_error", "session_id": "fd1d6ef2", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:03:41.758696", "level": "error"}
+{"component": "websocket", "error_message": "AttributeError(\"'NoneType' object has no attribute 'sock'\")", "event": "websocket_error", "session_id": "fd1d6ef2", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:03:42.760509", "level": "error"}
+{"details": {"freshness": {"valid": false, "last_sync": "2026-05-14T17:24:03.919798", "age_hours": 261.2}, "lot_sizes": {"errors": 0, "sanity_failures": [], "examples": []}, "expiry_mapping": {"errors": 0, "examples": []}, "symbol_token_mapping": {"missing_tokens": 0, "duplicate_tokens": 0, "examples": []}, "summary": "FAILED"}, "event": "instrument_sync_validation_failed", "session_id": "fd1d6ef2", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:03:58.803474", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: 404 Client Error: Not Found for url: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY", "event": "free_option_chain_error", "session_id": "fd1d6ef2", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:04:53.426827", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: 404 Client Error: Not Found for url: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY", "event": "free_option_chain_error", "session_id": "fd1d6ef2", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:05:05.341858", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: 404 Client Error: Not Found for url: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY", "event": "free_option_chain_error", "session_id": "fd1d6ef2", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:05:06.206157", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: 404 Client Error: Not Found for url: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY", "event": "free_option_chain_error", "session_id": "fd1d6ef2", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:05:06.742022", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x000001EC0C8C9590>>: socket is already closed.
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x000001EC0C8CA710>>: Connection is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection is already closed.')", "event": "websocket_error", "session_id": "4c7fec85", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:15:08.335035", "level": "error"}
+{"component": "websocket", "error_message": "AttributeError(\"'NoneType' object has no attribute 'sock'\")", "event": "websocket_error", "session_id": "4c7fec85", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:15:09.895995", "level": "error"}
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('socket is already closed.')", "event": "websocket_error", "session_id": "4c7fec85", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:15:09.899507", "level": "error"}
+{"details": {"freshness": {"valid": false, "last_sync": "2026-05-14T17:24:03.919798", "age_hours": 261.4}, "lot_sizes": {"errors": 0, "sanity_failures": [], "examples": []}, "expiry_mapping": {"errors": 0, "examples": []}, "symbol_token_mapping": {"missing_tokens": 0, "duplicate_tokens": 0, "examples": []}, "summary": "FAILED"}, "event": "instrument_sync_validation_failed", "session_id": "4c7fec85", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:16:03.775264", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: 404 Client Error: Not Found for url: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY", "event": "free_option_chain_error_falling_back_to_simulation", "session_id": "4c7fec85", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:16:04.349223", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: 404 Client Error: Not Found for url: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY", "event": "free_option_chain_error_falling_back_to_simulation", "session_id": "4c7fec85", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:16:22.437319", "level": "error"}
+{"error": "Failed to fetch NSE data after 5 attempts. Last error: 404 Client Error: Not Found for url: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY", "event": "free_option_chain_error_falling_back_to_simulation", "session_id": "4c7fec85", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:16:49.026198", "level": "error"}
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection to remote host was lost.')", "event": "websocket_error", "session_id": "4c7fec85", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:17:13.119523", "level": "error"}
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection to remote host was lost.')", "event": "websocket_error", "session_id": "4c7fec85", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:17:13.233184", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x000001EC0C8C9590>>: Connection is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection is already closed.')", "event": "websocket_error", "session_id": "4c7fec85", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:17:19.421660", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x000001EC4803ECF0>>: Connection is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection is already closed.')", "event": "websocket_error", "session_id": "4c7fec85", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:17:19.423900", "level": "error"}
+{"error": "Market is closed. Falling back to high-quality simulation instantly.", "event": "free_option_chain_error_falling_back_to_simulation", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:22:16.376030", "level": "error"}
+error from callback <bound method StartServer.on_message of <neo_api_client.HSWebSocketLib.StartServer object at 0x000002560A34AE40>>: socket is already closed.
+{"component": "websocket", "error": "socket is already closed.", "event": "subscribe_failed", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:24:00.753496", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x000002560A2CB610>>: Connection is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection is already closed.')", "event": "websocket_error", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:24:00.881889", "level": "error"}
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('socket is already closed.')", "event": "websocket_error", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:24:01.783025", "level": "error"}
+{"component": "websocket", "error_message": "AttributeError(\"'NoneType' object has no attribute 'sock'\")", "event": "websocket_error", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:24:01.884539", "level": "error"}
+{"error": "Market is closed. Falling back to high-quality simulation instantly.", "event": "free_option_chain_error_falling_back_to_simulation", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:24:23.675547", "level": "error"}
+{"error": "Market is closed. Falling back to high-quality simulation instantly.", "event": "free_option_chain_error_falling_back_to_simulation", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:24:31.252880", "level": "error"}
+{"error": "Market is closed. Falling back to high-quality simulation instantly.", "event": "free_option_chain_error_falling_back_to_simulation", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:24:38.894232", "level": "error"}
+{"error": "Market is closed. Falling back to high-quality simulation instantly.", "event": "free_option_chain_error_falling_back_to_simulation", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:24:46.611050", "level": "error"}
+{"error": "Market is closed. Falling back to high-quality simulation instantly.", "event": "free_option_chain_error_falling_back_to_simulation", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:24:47.561554", "level": "error"}
+{"details": {"freshness": {"valid": false, "last_sync": "2026-05-14T17:24:03.919798", "age_hours": 261.5}, "lot_sizes": {"errors": 0, "sanity_failures": [], "examples": []}, "expiry_mapping": {"errors": 0, "examples": []}, "symbol_token_mapping": {"missing_tokens": 0, "duplicate_tokens": 0, "examples": []}, "summary": "FAILED"}, "event": "instrument_sync_validation_failed", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:24:47.872149", "level": "error"}
+{"error": "Market is closed. Falling back to high-quality simulation instantly.", "event": "free_option_chain_error_falling_back_to_simulation", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:24:51.148027", "level": "error"}
+{"error": "Market is closed. Falling back to high-quality simulation instantly.", "event": "free_option_chain_error_falling_back_to_simulation", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:25:08.265591", "level": "error"}
+{"error": "Market is closed. Falling back to high-quality simulation instantly.", "event": "free_option_chain_error_falling_back_to_simulation", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:25:13.170363", "level": "error"}
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection to remote host was lost.')", "event": "websocket_error", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:26:32.262726", "level": "error"}
+error from callback <bound method StartServer.on_open of <neo_api_client.HSWebSocketLib.StartServer object at 0x000002560A34AE40>>: Connection is already closed.
+{"component": "websocket", "error_message": "WebSocketConnectionClosedException('Connection is already closed.')", "event": "websocket_error", "session_id": "08204540", "trading_day": "2026-05-25", "timestamp": "2026-05-25T20:26:39.280672", "level": "error"}

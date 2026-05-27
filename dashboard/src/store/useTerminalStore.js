@@ -8,11 +8,16 @@ const initialMarketWatch = [];
 export const useTerminalStore = create((set, get) => ({
   positions: initialPositions,
   marketWatch: initialMarketWatch,
+  availableMargin: 0,
+  marginUsed: 0,
+  niftySpot: 23985.0,
+  bankNiftySpot: 55138.0,
 
   // --- Option Chain State ---
   selectedUnderlying: 'NIFTY',
   selectedExpiry: '',
   availableExpiries: [],
+  availableUnderlyings: ['NIFTY', 'BANKNIFTY', 'SENSEX'],
   spotPrice: 0,
   optionChain: [],
 
@@ -20,9 +25,13 @@ export const useTerminalStore = create((set, get) => ({
   setExpiry: (expiry) => set({ selectedExpiry: expiry }),
   setSpotPrice: (price) => set({ spotPrice: price }),
   setAvailableExpiries: (expiries) => set({ availableExpiries: expiries }),
+  setAvailableUnderlyings: (underlyings) => set({ availableUnderlyings: underlyings }),
   setOptionChain: (chain) => set({ optionChain: chain }),
   setMarketWatch: (data) => set({ marketWatch: data }),
   setPositions: (positions) => set({ positions }),
+  setMargins: (availableMargin, marginUsed) => set({ availableMargin, marginUsed }),
+  setNiftySpot: (niftySpot) => set({ niftySpot }),
+  setBankNiftySpot: (bankNiftySpot) => set({ bankNiftySpot }),
 
   updateOptionChainRow: (strike, side, updates) => set((state) => ({
     optionChain: state.optionChain.map(row => {
@@ -83,7 +92,8 @@ export const useTerminalStore = create((set, get) => ({
   squareOff: (symbol) => set((state) => ({
     positions: state.positions.map(p => {
       if (p.symbol === symbol) {
-        return { ...p, netQty: 0, realizedPnl: p.realizedPnl + (p.ltp - p.avgBuyPrice) * p.netQty };
+        const unrealized = p.netQty > 0 ? (p.ltp - p.avgBuyPrice) * p.netQty : (p.avgSellPrice - p.ltp) * Math.abs(p.netQty);
+        return { ...p, netQty: 0, realizedPnl: p.realizedPnl + unrealized };
       }
       return p;
     })

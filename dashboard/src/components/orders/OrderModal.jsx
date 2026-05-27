@@ -1,20 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTerminalStore } from '../../store/useTerminalStore';
 import clsx from 'clsx';
 import { X } from 'lucide-react';
 import { getApiUrl } from '../../utils/api';
 
-// Mock market depth data
-const mockDepth = [
-  { bid: 16.88, bidOrders: 16, bidQty: 55994, offer: 16.89, offerOrders: 3, offerQty: 2735 },
-  { bid: 16.87, bidOrders: 134, bidQty: 147187, offer: 16.90, offerOrders: 35, offerQty: 266543 },
-  { bid: 16.86, bidOrders: 69, bidQty: 120648, offer: 16.91, offerOrders: 29, offerQty: 196270 },
-  { bid: 16.85, bidOrders: 281, bidQty: 623994, offer: 16.92, offerOrders: 23, offerQty: 177956 },
-  { bid: 16.84, bidOrders: 39, bidQty: 157584, offer: 16.93, offerOrders: 23, offerQty: 192747 },
-];
-
 export const OrderModal = () => {
   const { isOpen, type, symbol, price } = useTerminalStore(state => state.orderModal);
+  const availableMargin = useTerminalStore(state => state.availableMargin);
   const closeOrderModal = useTerminalStore(state => state.closeOrderModal);
   
   const [activeTab, setActiveTab] = useState('Regular');
@@ -100,7 +92,35 @@ export const OrderModal = () => {
   
   // Computed values
   const requiredMargin = isPriceDisabled ? (price || 0) * qty : orderPrice * qty;
-  const availableMargin = 79400.95; // Mock
+
+  // Dynamically generate market depth around price
+  const depth = useMemo(() => {
+    const basePrice = price || 10.0;
+    const result = [];
+    for (let i = 0; i < 5; i++) {
+      const bidPrice = Math.max(0.05, basePrice - (i * 0.05) - 0.05);
+      const offerPrice = basePrice + (i * 0.05) + 0.05;
+      
+      const bidOrders = Math.floor((20 - i * 3) * (1 + (i % 2) * 0.15));
+      const offerOrders = Math.floor((18 - i * 2.5) * (1 + (i % 2) * 0.2));
+      
+      const bidQty = bidOrders * lotSize * Math.floor((Math.sin(i) * 2 + 3));
+      const offerQty = offerOrders * lotSize * Math.floor((Math.cos(i) * 2 + 3));
+      
+      result.push({
+        bid: Number(bidPrice.toFixed(2)),
+        bidOrders,
+        bidQty,
+        offer: Number(offerPrice.toFixed(2)),
+        offerOrders,
+        offerQty
+      });
+    }
+    return result;
+  }, [price, lotSize]);
+
+  const totalBidQty = useMemo(() => depth.reduce((sum, r) => sum + r.bidQty, 0), [depth]);
+  const totalOfferQty = useMemo(() => depth.reduce((sum, r) => sum + r.offerQty, 0), [depth]);
 
   const validate = () => {
     if (qty <= 0) return 'Quantity must be greater than 0';
@@ -495,21 +515,21 @@ export const OrderModal = () => {
                  </tr>
                </thead>
                <tbody>
-                 {mockDepth.map((row, i) => (
+                 {depth.map((row, i) => (
                    <tr key={i} className="border-b border-[#eee] hover:bg-gray-50">
                      <td className="text-[#4a90e2] py-1">{row.bid.toFixed(2)}</td>
                      <td className="text-[#4a90e2] text-right">{row.bidOrders}</td>
                      <td className="text-[#4a90e2] text-right font-bold relative">
                        {/* Mock Depth Bar background */}
                        <div className="absolute inset-y-0 right-0 bg-[#4a90e2]/10" style={{ width: `${Math.random()*60 + 20}%`}}></div>
-                       <span className="relative z-10 pr-1">{row.bidQty}</span>
+                       <span className="relative z-10 pr-1">{row.bidQty.toLocaleString('en-IN')}</span>
                      </td>
                      <td className="text-[#e24a4a] py-1 pl-2">{row.offer.toFixed(2)}</td>
                      <td className="text-[#e24a4a] text-right">{row.offerOrders}</td>
                      <td className="text-[#e24a4a] text-right font-bold relative">
                        {/* Mock Depth Bar background */}
                        <div className="absolute inset-y-0 right-0 bg-[#e24a4a]/10" style={{ width: `${Math.random()*60 + 20}%`}}></div>
-                       <span className="relative z-10 pr-1">{row.offerQty}</span>
+                       <span className="relative z-10 pr-1">{row.offerQty.toLocaleString('en-IN')}</span>
                      </td>
                    </tr>
                  ))}
@@ -518,10 +538,10 @@ export const OrderModal = () => {
                  <tr className="border-t border-[#eee]">
                    <td className="text-[#4a90e2] py-2">Total</td>
                    <td></td>
-                   <td className="text-[#4a90e2] text-right font-bold pr-1">85,21,022</td>
+                   <td className="text-[#4a90e2] text-right font-bold pr-1">{totalBidQty.toLocaleString('en-IN')}</td>
                    <td className="text-[#e24a4a] py-2 pl-2">Total</td>
                    <td></td>
-                   <td className="text-[#e24a4a] text-right font-bold pr-1">1,33,60,673</td>
+                   <td className="text-[#e24a4a] text-right font-bold pr-1">{totalOfferQty.toLocaleString('en-IN')}</td>
                  </tr>
                </tfoot>
              </table>

@@ -68,7 +68,9 @@ export const NetPositionGrid = () => {
         if (!params.data) return 0;
         const p = params.data;
         if (p.netQty === 0) return 0;
-        return (p.ltp - p.avgBuyPrice) * p.netQty;
+        return p.netQty > 0 
+          ? (p.ltp - p.avgBuyPrice) * p.netQty 
+          : (p.avgSellPrice - p.ltp) * Math.abs(p.netQty);
       },
       valueFormatter: p => p.value ? p.value.toFixed(2) : '0.00',
       cellStyle: params => ({ color: params.value > 0 ? '#008800' : params.value < 0 ? '#cc0000' : '#555', fontWeight: 'bold' }),

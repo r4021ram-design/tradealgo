@@ -51,6 +51,28 @@ class StrikeSelector:
         return {"spot": selection["spot"], "atm": selection["atm"], "ce": ce, "pe": pe}
 
     def spot_price(self, underlying: str, exchange_segment: str, instrument_type: str | None = None) -> float:
+        # Try fetching real-time quote for index spot price from the broker first
+        idx_token = "26000" if underlying.upper() == "NIFTY" else "26009" if underlying.upper() == "BANKNIFTY" else None
+        if idx_token:
+            try:
+                quotes = self.broker.quotes(instrument_tokens=[{"instrument_token": idx_token, "exchange_segment": "nse_cm"}], is_index=True)
+                messages = []
+                if isinstance(quotes, list):
+                    messages = quotes
+                elif isinstance(quotes, dict):
+                    messages = quotes.get("message", [])
+                    if not isinstance(messages, list):
+                        messages = [messages]
+                
+                for msg in messages:
+                    if isinstance(msg, dict) and str(msg.get("instrument_token") or msg.get("tk") or msg.get("exchange_token")) == idx_token:
+                        ltp = float(msg.get("last_traded_price") or msg.get("ltp") or 0.0)
+                        if ltp > 0:
+                            self.logger.info("spot_price_fetched_from_broker", underlying=underlying, ltp=ltp)
+                            return ltp
+            except Exception as e:
+                self.logger.warning("failed_to_fetch_spot_price_quote", underlying=underlying, error=str(e))
+
         rows = self._load_rows(exchange_segment)
         futures_rows = [
             row for row in rows
@@ -95,7 +117,8 @@ class StrikeSelector:
                 raw_exp = row.get("pExpiryDate") or row.get("lExpiryDate ")
                 if raw_exp and raw_exp.isdigit():
                     try:
-                        dt = datetime.fromtimestamp(int(raw_exp))
+                        val = int(raw_exp) + 315532800
+                        dt = datetime.utcfromtimestamp(val)
                         expiry = dt.strftime("%d-%b-%Y")
                     except Exception:
                         pass
