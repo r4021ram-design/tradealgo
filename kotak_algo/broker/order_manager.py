@@ -158,6 +158,9 @@ class OrderManager:
 
     def place_stop_loss_order(self, leg: dict[str, Any], sl_level: float) -> dict[str, Any]:
         quantity = leg.get("quantity", leg.get("lot_size", 1) * leg.get("lots", 1))
+        # If the position is LONG, we exit by SELLING ("S"). If SHORT, we exit by BUYING ("B").
+        side = leg.get("side", "SHORT")
+        txn_type = "S" if side == "LONG" else "B"
         payload = {
             "exchange_segment": leg["exchange_segment"],
             "product": leg["product"],
@@ -166,7 +169,7 @@ class OrderManager:
             "quantity": quantity,
             "validity": "DAY",
             "trading_symbol": leg["trading_symbol"],
-            "transaction_type": "B",
+            "transaction_type": txn_type,
             "amo": "NO",
             "disclosed_quantity": "0",
             "market_protection": "0",
@@ -187,6 +190,9 @@ class OrderManager:
 
     def market_exit(self, leg: dict[str, Any], reason: str) -> dict[str, Any]:
         quantity = leg.get("quantity", leg.get("lot_size", 1) * leg.get("lots", 1))
+        # If the position is LONG, we exit by SELLING ("S"). If SHORT, we exit by BUYING ("B").
+        side = leg.get("side", "SHORT")
+        txn_type = "S" if side == "LONG" else "B"
         payload = {
             "exchange_segment": leg["exchange_segment"],
             "product": leg["product"],
@@ -195,7 +201,7 @@ class OrderManager:
             "quantity": quantity,
             "validity": "DAY",
             "trading_symbol": leg["trading_symbol"],
-            "transaction_type": "B",
+            "transaction_type": txn_type,
             "amo": "NO",
             "disclosed_quantity": "0",
             "market_protection": "0",
@@ -254,6 +260,64 @@ class OrderManager:
             return response
         except Exception as exc:
             self.logger.error("order_cancel_failed", order_id=order_id, error=str(exc))
+            raise
+
+    def modify_order(self, order_id: str, new_price: float, new_quantity: int) -> dict[str, Any]:
+        """Modify price and quantity for a pending order."""
+        if self.paper_trade:
+            with self._lock:
+                order = self.pending_orders.get(order_id)
+                if not order:
+                    raise ValueError(f"Order {order_id} not found")
+                
+                # Update paper order fields
+                order["price"] = self._format_price(new_price)
+                order["quantity"] = new_quantity
+                order["payload"]["price"] = order["price"]
+                order["payload"]["quantity"] = new_quantity
+                
+                # Check for instant fill if paper_trade and MKT or price crossed
+                if new_price > 0:
+                    mid = self.position_tracker.mid_price(order["trading_symbol"])
+                    # Simple assumption for paper limit orders - fill immediately if changed
+                    if mid > 0:
+                        order["status"] = "filled"
+                        order["fill_price"] = new_price
+                        self.position_tracker.record_fill(order, fill_price=new_price)
+                
+            self.logger.info("paper_order_modified", order_id=order_id, new_price=new_price, new_qty=new_quantity)
+            return {"status": "modified", "order_id": order_id}
+
+        try:
+            with self._lock:
+                order = self.pending_orders.get(order_id)
+                if not order:
+                    raise ValueError(f"Order {order_id} not found in local cache")
+                payload = order["payload"]
+                
+            response = self.broker.modify_order(
+                order_id=order_id,
+                price=self._format_price(new_price),
+                quantity=new_quantity,
+                validity=payload["validity"],
+                trading_symbol=payload["trading_symbol"],
+                exchange_segment=payload["exchange_segment"],
+                product=payload["product"],
+                order_type=payload["order_type"],
+            )
+            validate_order_response(response, context="modify_order")
+            
+            # Update local cache
+            with self._lock:
+                order["price"] = self._format_price(new_price)
+                order["quantity"] = new_quantity
+                order["payload"]["price"] = order["price"]
+                order["payload"]["quantity"] = new_quantity
+                
+            self.logger.info("order_modified", order_id=order_id, new_price=new_price, new_qty=new_quantity, response=response)
+            return response
+        except Exception as exc:
+            self.logger.error("order_modify_failed", order_id=order_id, error=str(exc))
             raise
 
     def cancel_all_pending(self) -> None:

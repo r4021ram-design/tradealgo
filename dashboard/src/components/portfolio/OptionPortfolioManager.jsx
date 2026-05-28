@@ -21,6 +21,30 @@ const parseOptionSymbol = (symbol) => {
   const middle = match[2];
   const type = match[3] === 'CE' ? 'Call' : 'Put';
   
+  const HOLIDAYS_2026 = new Set([
+    "2026-01-15", "2026-01-26", "2026-03-03", "2026-03-26", "2026-03-31",
+    "2026-04-03", "2026-04-14", "2026-05-01", "2026-05-28", "2026-06-26",
+    "2026-09-14", "2026-10-02", "2026-10-20", "2026-11-10", "2026-11-24",
+    "2026-12-25"
+  ]);
+
+  const shiftExpiryDate = (dt) => {
+    while (true) {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
+      const dtStr = `${y}-${m}-${d}`;
+      const dayOfWeek = dt.getDay(); // 0 = Sunday, 6 = Saturday
+      
+      if (dayOfWeek === 0 || dayOfWeek === 6 || HOLIDAYS_2026.has(dtStr)) {
+        dt.setDate(dt.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return dt;
+  };
+
   // Find the 3-letter month (JAN, FEB, etc.)
   const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   let monthIdx = -1;
@@ -52,8 +76,9 @@ const parseOptionSymbol = (symbol) => {
       
       const now = new Date();
       const d = new Date(year, monthVal, day, 15, 30, 0);
-      const expDate = d.toISOString().split('T')[0];
-      const dte = Math.max(0, Math.ceil((d - now) / (1000 * 60 * 60 * 24)));
+      const shiftedD = shiftExpiryDate(d);
+      const expDate = shiftedD.toISOString().split('T')[0];
+      const dte = Math.max(0, Math.ceil((shiftedD - now) / (1000 * 60 * 60 * 24)));
       
       return { underlying, expiryStr: middle.substring(0, 5), expDate, dte, strike, type };
     }
@@ -96,8 +121,9 @@ const parseOptionSymbol = (symbol) => {
 
   if (day !== null) {
     const d = new Date(year, monthVal, day, 15, 30, 0);
-    expDate = d.toISOString().split('T')[0];
-    dte = Math.max(0, Math.ceil((d - now) / (1000 * 60 * 60 * 24)));
+    const shiftedD = shiftExpiryDate(d);
+    expDate = shiftedD.toISOString().split('T')[0];
+    dte = Math.max(0, Math.ceil((shiftedD - now) / (1000 * 60 * 60 * 24)));
   } else {
     // Monthly option: last Tuesday of the month (last Thursday for SENSEX/BANKEX)
     const lastDay = new Date(year, monthVal + 1, 0).getDate();
@@ -116,8 +142,9 @@ const parseOptionSymbol = (symbol) => {
     }
     
     const d = new Date(year, monthVal, day, 15, 30, 0);
-    expDate = d.toISOString().split('T')[0];
-    dte = Math.max(0, Math.ceil((d - now) / (1000 * 60 * 60 * 24)));
+    const shiftedD = shiftExpiryDate(d);
+    expDate = shiftedD.toISOString().split('T')[0];
+    dte = Math.max(0, Math.ceil((shiftedD - now) / (1000 * 60 * 60 * 24)));
   }
   
   return { underlying, expiryStr: middle.substring(0, monthIdx + 3), expDate, dte, strike, type };

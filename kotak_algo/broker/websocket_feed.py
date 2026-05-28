@@ -65,14 +65,35 @@ class WebSocketFeed:
     def _on_reauth(self, new_client: Any) -> None:
         """Callback from broker when session is refreshed."""
         self.logger.info("websocket_refreshing_client_after_reauth")
+        
+        was_stopped = not self._should_run
+        self._should_run = True
+        self._reconnect_count = 0
+        self._backoff = 1.0
+        
         # Update callbacks on the new client instance
         new_client.on_message = self.on_message
         new_client.on_error = self.on_error
         new_client.on_close = self.on_close
         new_client.on_open = self.on_open
-        # Trigger a reconnect to use the new session
-        if self.connected:
-            self._attempt_reconnect(reason="session_refreshed")
+        
+        # Resubscribe using the new session
+        if self._subscribed:
+            self.logger.info("re_subscribing_after_reauth", count=len(self._subscribed))
+            try:
+                new_client.subscribe(
+                    instrument_tokens=list(self._subscribed.values()),
+                    isIndex=False,
+                    isDepth=False,
+                )
+            except Exception as e:
+                self.logger.error("re_subscribe_failed_after_reauth", error=str(e))
+                
+        # Restart heartbeat thread if it died
+        if was_stopped or not self._heartbeat_thread or not self._heartbeat_thread.is_alive():
+            self.logger.info("restarting_heartbeat_loop")
+            self._heartbeat_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
+            self._heartbeat_thread.start()
 
     def stop(self) -> None:
         self._should_run = False
@@ -104,7 +125,7 @@ class WebSocketFeed:
         if not parsed:
             return
 
-        symbol = parsed.get("trading_symbol", "")
+        symbol = parsed.get("trading_symbol") or parsed.get("instrument_token")
         if not symbol:
             return
 
@@ -173,6 +194,7 @@ class WebSocketFeed:
 
         self._reconnect_count += 1
         if self._reconnect_count > self.MAX_RECONNECT_ATTEMPTS:
+            self._should_run = False
             self.logger.error("max_reconnects_exceeded", attempts=self._reconnect_count)
             event_bus.publish(Event(EventNames.RECONNECT_FAILED, {
                 "attempts": self._reconnect_count,
@@ -206,6 +228,15 @@ class WebSocketFeed:
             client.on_error = self.on_error
             client.on_close = self.on_close
             client.on_open = self.on_open
+            
+            if self._subscribed:
+                self.logger.info("re_subscribing_in_reconnect", count=len(self._subscribed))
+                client.subscribe(
+                    instrument_tokens=list(self._subscribed.values()),
+                    isIndex=False,
+                    isDepth=False,
+                )
+            
             self.logger.info("reconnect_callbacks_re_registered")
             event_bus.publish(Event(EventNames.RECONNECT_SUCCEEDED))
         except Exception as exc:

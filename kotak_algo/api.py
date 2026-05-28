@@ -235,6 +235,11 @@ class StrategyExecutePayload(BaseModel):
     product: str = "NRML"
 
 
+class ModifyOrderPayload(BaseModel):
+    price: float
+    quantity: int
+
+
 class OptionChainRequest(BaseModel):
     underlying: str
     exchange_segment: str = "nse_fo"
@@ -751,35 +756,39 @@ async def place_option_chain_order(
         trading_sym = payload.trading_symbol
         token = payload.token
         
-        from kotak_algo.instruments.data.db_utils import get_db
+        from kotak_algo.instruments.data.db_utils import SessionLocal
         from kotak_algo.instruments.models.contract_model import Contract
         import re
         
-        db = next(get_db())
-        # Try exact matching on raw and clean symbol formats
-        clean_sym = trading_sym.replace(" ", "").upper()
-        contract = db.query(Contract).filter(
-            (Contract.trading_symbol == clean_sym) | 
-            (Contract.trading_symbol == trading_sym) |
-            (Contract.token == token)
-        ).first()
-        
-        if not contract:
-            # Try to match parts of the space-separated string (e.g. "NIFTY 26-MAY-2026 24200 CE")
-            match = re.match(
-                r'^(?P<symbol>[A-Za-z]+)\s+(?P<expiry>[^\s\d]*\d{1,2}[^\s\d]*\d{2,4}|[^\s\d]*\d{1,2}[^\s\d]*)\s+(?P<strike>\d+(?:\.\d+)?)\s+(?P<type>CE|PE)$', 
-                trading_sym.strip(), 
-                re.IGNORECASE
-            )
-            if match:
-                sym_part = match.group("symbol").upper()
-                strike_part = float(match.group("strike"))
-                type_part = match.group("type").upper()
-                contract = db.query(Contract).filter(
-                    Contract.symbol == sym_part,
-                    Contract.strike == strike_part,
-                    Contract.option_type == type_part
-                ).first()
+        db = SessionLocal()
+        contract = None
+        try:
+            # Try exact matching on raw and clean symbol formats
+            clean_sym = trading_sym.replace(" ", "").upper()
+            contract = db.query(Contract).filter(
+                (Contract.trading_symbol == clean_sym) | 
+                (Contract.trading_symbol == trading_sym) |
+                (Contract.token == token)
+            ).first()
+            
+            if not contract:
+                # Try to match parts of the space-separated string (e.g. "NIFTY 26-MAY-2026 24200 CE")
+                match = re.match(
+                    r'^(?P<symbol>[A-Za-z]+)\s+(?P<expiry>[^\s\d]*\d{1,2}[^\s\d]*\d{2,4}|[^\s\d]*\d{1,2}[^\s\d]*)\s+(?P<strike>\d+(?:\.\d+)?)\s+(?P<type>CE|PE)$', 
+                    trading_sym.strip(), 
+                    re.IGNORECASE
+                )
+                if match:
+                    sym_part = match.group("symbol").upper()
+                    strike_part = float(match.group("strike"))
+                    type_part = match.group("type").upper()
+                    contract = db.query(Contract).filter(
+                        Contract.symbol == sym_part,
+                        Contract.strike == strike_part,
+                        Contract.option_type == type_part
+                    ).first()
+        finally:
+            db.close()
                 
         if contract:
             LOGGER.info(
@@ -816,6 +825,9 @@ async def place_option_chain_order(
             except Exception as e:
                 LOGGER.warning("on_demand_quote_fetch_failed", symbol=trading_sym, error=str(e))
 
+        raw_qty = payload.quantity or lot_size
+        lots = max(1, raw_qty // lot_size) if lot_size > 0 else 1
+
         leg = {
             "trading_symbol": trading_sym,
             "instrument_token": token,
@@ -823,7 +835,7 @@ async def place_option_chain_order(
             "product": payload.product,
             "lot_size": lot_size,
             "lots": lots,
-            "quantity": lot_size * lots,
+            "quantity": raw_qty,
             "tag": f"option-chain-{payload.opt_type}",
         }
         
@@ -958,6 +970,30 @@ async def get_lot_size(symbol: str, db = Depends(get_db)):
     if lot_size is None:
         raise HTTPException(status_code=404, detail="Symbol not found")
     return {"symbol": symbol, "lot_size": lot_size}
+
+@app.get("/api/orders")
+async def get_orders(app: AlgoApp = Depends(get_algo_app_or_404)):
+    # Returns both pending and executed orders tracked by the order manager
+    # For a robust implementation, we would also merge with app.broker.order_report() if not paper_trading,
+    # but the pending_orders dict stores all orders submitted during the session.
+    orders = list(app.order_manager.pending_orders.values())
+    return {"success": True, "data": orders}
+
+@app.delete("/api/orders/{order_id}")
+async def cancel_order(order_id: str, app: AlgoApp = Depends(get_algo_app_or_404)):
+    try:
+        response = app.order_manager.cancel_order(order_id)
+        return {"success": True, "message": "Order cancelled successfully", "data": response}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/api/orders/{order_id}")
+async def modify_order(order_id: str, payload: ModifyOrderPayload, app: AlgoApp = Depends(get_algo_app_or_404)):
+    try:
+        response = app.order_manager.modify_order(order_id, payload.price, payload.quantity)
+        return {"success": True, "message": "Order modified successfully", "data": response}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

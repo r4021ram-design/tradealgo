@@ -277,22 +277,56 @@ class PositionTracker:
     def record_fill(self, order: dict[str, Any], fill_price: float) -> None:
         symbol = order["trading_symbol"]
         entry = self.legs.get(symbol, {})
-        if order["transaction_type"] == "S":
+        tx_type = order["transaction_type"]
+        order_qty = int(order.get("quantity", 0))
+        
+        current_qty = int(entry.get("quantity", 0))
+        current_side = entry.get("side", "")
+        current_status = entry.get("status", "CLOSED")
+        
+        if current_status == "CLOSED" or current_qty == 0:
+            # Opening a new position
             entry["entry_price"] = fill_price
-            entry["quantity"] = order["quantity"]
-            entry["side"] = "SHORT"
+            entry["quantity"] = order_qty
+            entry["side"] = "LONG" if tx_type == "B" else "SHORT"
             entry["status"] = "OPEN"
-            self.legs[symbol] = entry
-        elif order["transaction_type"] == "B":
-            entry_price = float(entry.get("entry_price", 0.0))
-            quantity = int(entry.get("quantity", order["quantity"]))
-            realized = (entry_price - fill_price) * quantity
-            entry["exit_price"] = fill_price
-            entry["status"] = "CLOSED"
-            entry["realized_pnl"] = float(entry.get("realized_pnl", 0.0)) + realized
-            entry["quantity"] = 0
-            self.legs[symbol] = entry
-        self.logger.info("fill_recorded", trading_symbol=symbol, transaction_type=order["transaction_type"], fill_price=fill_price)
+        else:
+            # We have an open position. Are we adding or closing?
+            is_adding = (current_side == "LONG" and tx_type == "B") or (current_side == "SHORT" and tx_type == "S")
+            if is_adding:
+                # Average the entry price
+                current_value = float(entry.get("entry_price", 0.0)) * current_qty
+                new_value = fill_price * order_qty
+                entry["entry_price"] = (current_value + new_value) / (current_qty + order_qty)
+                entry["quantity"] = current_qty + order_qty
+            else:
+                # Closing (fully or partially)
+                close_qty = min(current_qty, order_qty)
+                entry_price = float(entry.get("entry_price", 0.0))
+                
+                # Calculate realized PnL on the closed portion
+                if current_side == "LONG":
+                    realized = (fill_price - entry_price) * close_qty
+                else:
+                    realized = (entry_price - fill_price) * close_qty
+                    
+                entry["realized_pnl"] = float(entry.get("realized_pnl", 0.0)) + realized
+                
+                new_qty = current_qty - order_qty
+                if new_qty > 0:
+                    entry["quantity"] = new_qty
+                elif new_qty < 0:
+                    # Reversed position
+                    entry["quantity"] = abs(new_qty)
+                    entry["side"] = "LONG" if tx_type == "B" else "SHORT"
+                    entry["entry_price"] = fill_price
+                else:
+                    entry["quantity"] = 0
+                    entry["status"] = "CLOSED"
+                    entry["exit_price"] = fill_price
+                    
+        self.legs[symbol] = entry
+        self.logger.info("fill_recorded", trading_symbol=symbol, transaction_type=tx_type, fill_price=fill_price, new_qty=entry.get("quantity"), status=entry.get("status"))
 
     def total_pnl(self) -> float:
         total = 0.0
@@ -303,7 +337,10 @@ class PositionTracker:
             entry = float(leg.get("entry_price", 0.0))
             ltp = self.ltp(symbol)
             qty = int(leg.get("quantity", 0))
-            total += (entry - ltp) * qty
+            if leg.get("side") == "LONG":
+                total += (ltp - entry) * qty
+            else:
+                total += (entry - ltp) * qty
         return total
 
     def net_premium_received(self) -> float:
@@ -474,7 +511,13 @@ class PositionTracker:
             qty = int(leg.get('quantity', 0))
             sl_level = float(leg.get('sl_level', 0.0))
             realized = float(leg.get("realized_pnl", 0.0))
-            unrealized = (entry - ltp) * qty if leg.get("status") == "OPEN" else 0.0
+            if leg.get("status") == "OPEN":
+                if leg.get("side") == "LONG":
+                    unrealized = (ltp - entry) * qty
+                else:
+                    unrealized = (entry - ltp) * qty
+            else:
+                unrealized = 0.0
             pnl = realized + unrealized
             status = str(leg.get("status", "OPEN"))
             rows.append(f"{symbol:<26}{entry:>10.2f}{ltp:>10.2f}{pnl:>12.2f}{sl_level:>10.2f}{qty:>8}{status:>10}")

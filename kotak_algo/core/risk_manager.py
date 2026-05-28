@@ -70,8 +70,13 @@ class RiskManager:
             ltp = self.position_tracker.ltp(symbol)
             if sl_level <= 0 or ltp <= 0:
                 continue
-            if ltp >= sl_level:
-                self.logger.warning("leg_stop_loss_hit", trading_symbol=symbol, ltp=ltp, sl_level=sl_level)
+            
+            # For LONG positions, SL triggers if price falls to or below SL level.
+            # For SHORT positions (default), SL triggers if premium rises to or above SL level.
+            is_sl_hit = (ltp <= sl_level) if leg.get("side") == "LONG" else (ltp >= sl_level)
+            
+            if is_sl_hit:
+                self.logger.warning("leg_stop_loss_hit", trading_symbol=symbol, ltp=ltp, sl_level=sl_level, side=leg.get("side"))
                 event_bus.publish(Event(
                     EventNames.LEG_STOP_LOSS_TRIGGERED,
                     {"trading_symbol": symbol, "sl_level": sl_level, "ltp": ltp}

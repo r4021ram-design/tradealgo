@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, time
 from typing import Any, Dict, Optional
 
-from kotak_algo.instruments.data.db_utils import get_db
+from kotak_algo.instruments.data.db_utils import SessionLocal
 from kotak_algo.instruments.models.contract_model import Contract
 from kotak_algo.utils.logger import get_logger
 
@@ -66,13 +66,15 @@ class PreTradeValidator:
 
     def _get_contract(self, trading_symbol: str) -> Optional[Contract]:
         """Fetch contract details from SQLite."""
+        db = SessionLocal()
         try:
-            db = next(get_db())
             contract = db.query(Contract).filter(Contract.trading_symbol == trading_symbol).first()
             return contract
         except Exception as e:
             self.logger.error("failed_to_fetch_contract_for_validation", symbol=trading_symbol, error=str(e))
             return None
+        finally:
+            db.close()
 
     def _check_expiry(self, contract: Contract) -> None:
         """Check if the contract is already expired."""
