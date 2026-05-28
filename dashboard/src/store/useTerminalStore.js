@@ -12,6 +12,9 @@ export const useTerminalStore = create((set, get) => ({
   marginUsed: 0,
   niftySpot: 23985.0,
   bankNiftySpot: 55138.0,
+  activeView: 'terminal', // 'terminal' or 'oms'
+  setActiveView: (activeView) => set({ activeView }),
+
 
   // --- Option Chain State ---
   selectedUnderlying: 'NIFTY',
@@ -33,17 +36,20 @@ export const useTerminalStore = create((set, get) => ({
   setNiftySpot: (niftySpot) => set({ niftySpot }),
   setBankNiftySpot: (bankNiftySpot) => set({ bankNiftySpot }),
 
-  updateOptionChainRow: (strike, side, updates) => set((state) => ({
-    optionChain: state.optionChain.map(row => {
-      if (row.strike === strike) {
-        return {
-          ...row,
-          [side]: { ...row[side], ...updates }
-        };
-      }
-      return row;
-    })
-  })),
+  updateOptionChainRow: (strike, side, updates) => set((state) => {
+    if (side !== 'ce' && side !== 'pe') return {};
+    return {
+      optionChain: state.optionChain.map(row => {
+        if (row.strike === strike) {
+          return {
+            ...row,
+            [side]: { ...row[side], ...updates }
+          };
+        }
+        return row;
+      })
+    };
+  }),
 
   // Order Modal State
   orderModal: {

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import signal
 import sys
+import threading
 import time
 from pathlib import Path
+from typing import Any
 
 from kotak_algo.broker.neo_client import NeoBrokerClient
 from kotak_algo.broker.order_manager import OrderManager
@@ -106,10 +108,14 @@ class AlgoApp:
         self.broker.authenticate()
         # Start proactive session health check every 5 minutes
         self.broker.start_health_check(interval_seconds=300)
-        self._refresh_nse_reference(force=True)
+        
+        # Start critical components first
         self.position_tracker.start()
         self.websocket.start()
         self.build_strategies()
+
+        # Run NSE reference refresh in a background thread to prevent it from blocking startup if the NSE server hangs
+        threading.Thread(target=self._refresh_nse_reference, args=(True,), daemon=True).start()
 
         # --- Strategy Recovery & Subscription ---
         self.logger.info("waiting_for_sync_for_recovery")

@@ -22,6 +22,8 @@ export const TopBar = () => {
 
   const niftySpot = useTerminalStore(state => state.niftySpot);
   const bankNiftySpot = useTerminalStore(state => state.bankNiftySpot);
+  const activeView = useTerminalStore(state => state.activeView);
+  const setActiveView = useTerminalStore(state => state.setActiveView);
 
   return (
     <div className="flex items-center justify-between bg-finance-panel border-b border-finance-border px-2 py-1 text-sm shrink-0">
@@ -43,6 +45,31 @@ export const TopBar = () => {
           <span className="text-finance-text">12.45</span>
         </div>
       </div>
+
+      {/* Navigation Tabs */}
+      <div className="flex items-center bg-slate-200 p-0.5 rounded border border-[#ccc]">
+        <button
+          onClick={() => setActiveView('terminal')}
+          className={`px-3 py-0.5 text-xs font-bold transition rounded ${
+            activeView === 'terminal'
+              ? 'bg-[#004085] text-white shadow-sm'
+              : 'text-black hover:bg-slate-350'
+          }`}
+        >
+          LIVE TERMINAL
+        </button>
+        <button
+          onClick={() => setActiveView('oms')}
+          className={`px-3 py-0.5 text-xs font-bold transition rounded ${
+            activeView === 'oms'
+              ? 'bg-[#004085] text-white shadow-sm'
+              : 'text-black hover:bg-slate-350'
+          }`}
+        >
+          OMS POSITION ENGINE
+        </button>
+      </div>
+
       
       <div className="flex items-center space-x-6">
         <div className="flex items-center space-x-2 font-mono font-bold">

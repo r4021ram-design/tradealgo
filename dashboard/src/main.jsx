@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community'
 import './index.css'
+import './utils/i18n'
 import App from './App.jsx'
 
 // AG Grid v35 requires explicit module registration

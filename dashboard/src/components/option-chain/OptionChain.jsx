@@ -107,6 +107,7 @@ export const OptionChain = () => {
   const tableRef = useRef(null);
   const scrolledRef = useRef(false);
   const [showGreeks, setShowGreeks] = useState(true);
+  const [showFullChain, setShowFullChain] = useState(false);
 
   // Greeks columns to toggle
   const greeksCols = ['iv', 'delta', 'gamma', 'theta', 'vega'];
@@ -118,10 +119,37 @@ export const OptionChain = () => {
 
   const handleTradeClick = (e, type, strike, optType, price) => {
     e.stopPropagation();
+    if (!selectedExpiry) {
+      alert('Please select a valid expiry date first.');
+      return;
+    }
     const expiryShort = selectedExpiry.split(' ').slice(0, 2).join(' ').toUpperCase();
     const symbol = `${selectedUnderlying} ${expiryShort} ${strike} ${optType}`;
     openOrderModal(type, symbol, price);
   };
+
+  const atmIndex = useMemo(() => {
+    const idx = optionChain.findIndex(r => r.isATM);
+    if (idx !== -1) return idx;
+    if (!spotPrice || !optionChain.length) return -1;
+    let closestIdx = 0;
+    let minDiff = Math.abs(optionChain[0].strike - spotPrice);
+    for (let i = 1; i < optionChain.length; i++) {
+      const diff = Math.abs(optionChain[i].strike - spotPrice);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIdx = i;
+      }
+    }
+    return closestIdx;
+  }, [optionChain, spotPrice]);
+
+  const visibleChain = useMemo(() => {
+    if (showFullChain || atmIndex === -1) return optionChain;
+    const start = Math.max(0, atmIndex - 20);
+    const end = Math.min(optionChain.length, atmIndex + 21);
+    return optionChain.slice(start, end);
+  }, [optionChain, showFullChain, atmIndex]);
 
   // Auto-scroll to ATM on first load
   useEffect(() => {
@@ -206,6 +234,26 @@ export const OptionChain = () => {
           {atmStrike && (
             <div className="oc-atm-badge">ATM: {atmStrike}</div>
           )}
+
+          <button
+            onClick={() => setShowFullChain(prev => !prev)}
+            className={`oc-btn-show-full ${showFullChain ? 'active' : ''}`}
+            style={{
+              padding: '3px 8px',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              border: '1px solid #ccc',
+              borderRadius: '2px',
+              background: showFullChain ? '#e6e6e6' : '#fff',
+              color: '#333',
+              marginLeft: '8px',
+              fontFamily: 'Calibri, Arial, sans-serif',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            {showFullChain ? 'Show Filtered (ATM ± 20)' : 'Show Full Chain'}
+          </button>
         </div>
 
         <div className="oc-header-right">
@@ -260,7 +308,7 @@ export const OptionChain = () => {
             </tr>
           </thead>
           <tbody>
-            {optionChain.map(row => (
+            {visibleChain.map(row => (
               <tr
                 key={row.strike}
                 className={row.isATM ? 'oc-atm-row' : ''}

@@ -4,6 +4,8 @@ import { useTerminalStore } from '../../store/useTerminalStore';
 import { OptionChain } from '../option-chain/OptionChain';
 import { StrategyBuilder } from '../strategy/StrategyBuilder';
 import { OptionPortfolioManager } from '../portfolio/OptionPortfolioManager';
+import { OrdersGrid } from './OrdersGrid';
+import { useOrdersData } from '../../hooks/useOrdersData';
 import clsx from 'clsx';
 
 const SquareOffRenderer = (props) => {
@@ -26,6 +28,7 @@ export const NetPositionGrid = () => {
   const gridRef = useRef();
   const positions = useTerminalStore(state => state.positions);
   const [activeTab, setActiveTab] = useState('Net Position');
+  const { pendingOrders, executedOrders, cancelOrder, modifyOrder } = useOrdersData();
 
   const tabs = ['Net Position', 'Option Chain', 'Strategy Builder', 'Portfolio Manager', 'Pending Orders', 'Executed Trades'];
 
@@ -164,6 +167,10 @@ export const NetPositionGrid = () => {
           <StrategyBuilder />
         ) : activeTab === 'Portfolio Manager' ? (
           <OptionPortfolioManager />
+        ) : activeTab === 'Pending Orders' ? (
+          <OrdersGrid orders={pendingOrders} type="pending" cancelOrder={cancelOrder} modifyOrder={modifyOrder} />
+        ) : activeTab === 'Executed Trades' ? (
+          <OrdersGrid orders={executedOrders} type="executed" cancelOrder={cancelOrder} modifyOrder={modifyOrder} />
         ) : (
           <div className="flex items-center justify-center h-full text-[#888] bg-white">
             {activeTab} data not available in demo.

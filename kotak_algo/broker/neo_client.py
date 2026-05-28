@@ -96,7 +96,11 @@ class NeoBrokerClient:
                 "\"git+https://github.com/Kotak-Neo/Kotak-neo-api-v2.git@v2.0.1#egg=neo_api_client\""
             )
 
-        with self._auth_lock:
+        # Do not wait indefinitely for the lock. The SDK might hang for 70s without a timeout.
+        if not self._auth_lock.acquire(timeout=5.0):
+            raise AuthenticationError("Authentication is already in progress and hanging. Failing fast.")
+            
+        try:
             # Double-check: was session refreshed by another thread while we waited?
             if self._client is not None:
                 try:
@@ -131,12 +135,21 @@ class NeoBrokerClient:
                 self.client.totp_validate(mpin=self.config["mpin"])
                 self._circuit.reset()
                 self.logger.info("authentication_completed")
+                
+                event_bus.publish(Event(EventNames.SESSION_REAUTH_SUCCESS))
+                for listener in self._reauth_listeners:
+                    try:
+                        listener(self.client)
+                    except Exception as e:
+                        self.logger.error("reauth_listener_error", error=str(e))
             except Exception as exc:
-                self.logger.error("authentication_failed", error=str(exc))
+                self.logger.error("authentication_failed", error=repr(exc))
                 raise AuthenticationError(
-                    f"Broker authentication failed: {exc}",
-                    details={"error": str(exc)},
+                    f"Broker authentication failed: {repr(exc)}",
+                    details={"error": repr(exc)},
                 ) from exc
+        finally:
+            self._auth_lock.release()
 
     def _re_authenticate(self) -> None:
         """Called when a session expiry is detected mid-session."""
@@ -150,13 +163,6 @@ class NeoBrokerClient:
         event_bus.publish(Event(EventNames.SESSION_EXPIRED))
         try:
             self.authenticate()
-            event_bus.publish(Event(EventNames.SESSION_REAUTH_SUCCESS))
-            # Notify listeners (e.g. WebSocket feed) to refresh their client reference
-            for listener in self._reauth_listeners:
-                try:
-                    listener(self.client)
-                except Exception as e:
-                    self.logger.error("reauth_listener_error", error=str(e))
         except Exception as exc:
             event_bus.publish(Event(EventNames.SESSION_REAUTH_FAILED, {"error": str(exc)}))
             raise

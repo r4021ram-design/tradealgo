@@ -95,11 +95,24 @@ kotakalgo/
 │   │   ├── App.css                  # Global styles
 │   │   ├── index.css                # Tailwind directives
 │   │   │
+│   │   ├── engine/                  # OMS Core Engine (TypeScript)
+│   │   │   ├── types.ts             # Segment, Side, Order, Fill, Position types
+│   │   │   ├── instrumentRegistry.ts# Position key generation and parsing
+│   │   │   └── positionEngine.ts    # FIFO matching & realized/unrealized PNL
+│   │   │
 │   │   ├── components/
 │   │   │   ├── layout/
 │   │   │   │   ├── MainLayout.jsx   # Full-screen layout wrapper
 │   │   │   │   ├── TopBar.jsx       # NIFTY/BANKNIFTY spot, MTM, clock, status
 │   │   │   │   └── SplitPane.jsx    # 30/70 left-right split
+│   │   │   │
+│   │   │   ├── oms/                 # OMS Position Engine Simulation Grids
+│   │   │   │   ├── OMSDashboard.tsx # Composited layout with filtering/tabs
+│   │   │   │   ├── OpenPositionsGrid.tsx # Open positions table
+│   │   │   │   ├── ClosedTradesGrid.tsx  # Closed entry/exit matched pairs
+│   │   │   │   ├── OrderBookGrid.tsx     # Order history book
+│   │   │   │   ├── NetPositionWindow.tsx # MTM summary + manual order simulator
+│   │   │   │   └── FilterBar.tsx         # Multi-segment grid filter panel
 │   │   │   │
 │   │   │   ├── market-watch/
 │   │   │   │   └── MarketWatch.jsx  # AG Grid watchlist with live tick flashing
@@ -459,10 +472,17 @@ GET /api/free/option-chain/{symbol}
 - `selectedUnderlying`, `selectedExpiry` — Option chain selection
 - `optionChain[]` — Option chain data rows
 - `orderModal{}` — Order entry modal state
-- Actions: `updateTick()`, `setOptionChain()`, `squareOff()`, `executeStrategy()`
+- `activeView` — Renders either the Live Terminal ('terminal') or the OMS Position Engine ('oms')
+- Actions: `updateTick()`, `setOptionChain()`, `squareOff()`, `executeStrategy()`, `setActiveView()`
 
 **`usePortfolioStore`** (portfolio):
 - Portfolio state and P&L visualization data
+
+**`useOMSStore`** (OMS/RMS simulation):
+- `orders[]` — Placed simulation orders
+- `fills[]` — Executed trade fills
+- `marketPrices{}` — Tracked LTP / market prices per key
+- Actions: `addOrder()`, `addFill()`, `updateMarketPrice()`, `getDerivedPositions()`, `getPositionSummaries()`
 
 ### Hooks
 - `useTickStream()` — WebSocket connection to `/ws/live-feed`
@@ -588,3 +608,5 @@ Saved to: `data/post_market_data/YYYY-MM-DD/`
 8. **Structured logging**: All backend logs are JSON (structlog). Parse with `jq` or structured log viewers.
 9. **No routing library**: Dashboard uses conditional rendering, not React Router.
 10. **Kill switch**: `POST /square-off-all` or `RiskManager.activate_kill_switch()` exits everything immediately.
+11. **OMS/RMS Position Engine Simulation**: In the OMS view, order execution, FIFO matching, position flipping, and PNL calculation are computed locally on the client-side using `useOMSStore.ts` and `positionEngine.ts`. It does not execute live trades on the server or broker.
+

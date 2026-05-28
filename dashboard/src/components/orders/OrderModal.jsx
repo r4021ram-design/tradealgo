@@ -48,9 +48,10 @@ export const OrderModal = () => {
   // Update lot size and price when symbol or price changes
   useEffect(() => {
     if (isOpen) {
+      const priceNum = Number(price) || 0;
       setQty(getLotSize(symbol));
-      setOrderPrice(price || 0);
-      setTriggerPrice(price ? Number((price * 0.98).toFixed(2)) : 0); // Default SL 2% below
+      setOrderPrice(priceNum);
+      setTriggerPrice(priceNum ? Number((priceNum * 0.98).toFixed(2)) : 0); // Default SL 2% below
       setError(null);
       // Reset defaults based on tab
       if (activeTab === 'Cover') {
@@ -91,11 +92,14 @@ export const OrderModal = () => {
   const isTriggerDisabled = orderType !== 'SL' && orderType !== 'SL-M' && activeTab !== 'Cover';
   
   // Computed values
-  const requiredMargin = isPriceDisabled ? (price || 0) * qty : orderPrice * qty;
+  const priceNum = Number(price) || 0;
+  const orderPriceNum = Number(orderPrice) || 0;
+  const requiredMargin = isPriceDisabled ? priceNum * qty : orderPriceNum * qty;
+  const requiredMarginVal = isNaN(requiredMargin) ? 0 : requiredMargin;
 
   // Dynamically generate market depth around price
   const depth = useMemo(() => {
-    const basePrice = price || 10.0;
+    const basePrice = priceNum || 10.0;
     const result = [];
     for (let i = 0; i < 5; i++) {
       const bidPrice = Math.max(0.05, basePrice - (i * 0.05) - 0.05);
@@ -165,7 +169,9 @@ export const OrderModal = () => {
       order_type: orderType === 'Limit' ? 'L' : orderType === 'Market' ? 'MKT' : orderType,
       quantity: qty,
       opt_type: symbol.endsWith('PE') ? 'PE' : 'CE',
-      transaction_type: isBuy ? 'B' : 'S'
+      transaction_type: isBuy ? 'B' : 'S',
+      price: String(orderPrice),
+      trigger_price: String(triggerPrice)
     };
 
     try {
@@ -204,7 +210,7 @@ export const OrderModal = () => {
                <span className="uppercase">{symbol || 'Select Symbol'}</span>
                <span className="flex items-center gap-1">
                  <div className="w-2 h-2 bg-white rounded-full"></div>
-                 NSE ₹{(price || 0).toFixed(2)}
+                 NSE ₹{priceNum.toFixed(2)}
                </span>
                <span className="ml-4 text-xs font-normal opacity-80">Lot size: {lotSize}</span>
             </div>
@@ -469,10 +475,10 @@ export const OrderModal = () => {
             {/* Footer Buttons */}
             <div className="mt-auto pt-4 border-t border-[#ccc] flex justify-between items-center bg-finance-panel -mx-4 -mb-4 px-4 py-3">
               <div className="flex items-center gap-4 text-xs text-[#555]">
-                 <span>Margin Req: <span className="text-[#4a90e2] font-bold">₹{requiredMargin.toFixed(2)}</span></span>
+                 <span>Margin Req: <span className="text-[#4a90e2] font-bold">₹{requiredMarginVal.toFixed(2)}</span></span>
                  <div className="border border-black px-2 py-1 bg-white font-bold text-black flex items-center gap-1">
-                   Available <span className={clsx(availableMargin < requiredMargin ? "text-red-500" : "text-[#4a90e2]")}>
-                     ₹{availableMargin.toLocaleString('en-IN', {minimumFractionDigits: 2})}
+                   Available <span className={clsx((Number(availableMargin) || 0) < requiredMarginVal ? "text-red-500" : "text-[#4a90e2]")}>
+                     ₹{(Number(availableMargin) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}
                    </span>
                  </div>
               </div>

@@ -29,14 +29,18 @@ export function useLiveData() {
 
         const data = await response.json();
 
+        const marketData = data.market_data || {};
+        const marketDataMap = new Map(Object.entries(marketData));
+
         // Map backend legs to position format expected by NetPositionGrid
         const mapped = Object.entries(data.legs || {}).map(([symbol, leg]) => {
-          const ltp = data.market_data[symbol]?.ltp || leg.entry_price || 0;
-          const delta = data.market_data[symbol]?.delta || 0;
-          const theta = data.market_data[symbol]?.theta || 0;
-          const expiry = data.market_data[symbol]?.expiry || null;
-          const dte = data.market_data[symbol]?.dte !== undefined ? data.market_data[symbol]?.dte : null;
-          const iv = data.market_data[symbol]?.iv || null;
+          const symbolData = marketDataMap.get(symbol) || {};
+          const ltp = symbolData.ltp || leg.entry_price || 0;
+          const delta = symbolData.delta || 0;
+          const theta = symbolData.theta || 0;
+          const expiry = symbolData.expiry || null;
+          const dte = symbolData.dte !== undefined ? symbolData.dte : null;
+          const iv = symbolData.iv || null;
           
           let netQty = 0;
           if (leg.status === "OPEN") {
