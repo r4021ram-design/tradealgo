@@ -35,6 +35,7 @@ class StrategyConfig(BaseModel):
 
 
 class RiskConfig(BaseModel):
+    trading_pin: Optional[str] = "1234"
     max_daily_loss: float
     combined_sl_pct: float
     max_open_strategies: int = 2

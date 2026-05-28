@@ -971,6 +971,16 @@ async def get_lot_size(symbol: str, db = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Symbol not found")
     return {"symbol": symbol, "lot_size": lot_size}
 
+class VerifyPinPayload(BaseModel):
+    pin: str
+
+@app.post("/api/verify-pin")
+async def verify_pin(payload: VerifyPinPayload, app: AlgoApp = Depends(get_algo_app_or_404)):
+    expected_pin = app.config.risk.trading_pin
+    if payload.pin == expected_pin:
+        return {"success": True, "message": "PIN verified successfully"}
+    raise HTTPException(status_code=401, detail="Invalid Trading PIN")
+
 @app.get("/api/orders")
 async def get_orders(app: AlgoApp = Depends(get_algo_app_or_404)):
     # Returns both pending and executed orders tracked by the order manager
