@@ -8,8 +8,9 @@ from kotak_algo.utils.logger import get_logger
 
 
 class StrikeSelector:
-    def __init__(self, broker, logger=None) -> None:
+    def __init__(self, broker, position_tracker=None, logger=None) -> None:
         self.broker = broker
+        self.position_tracker = position_tracker
         self.logger = (logger or get_logger("strike_selector")).bind(component="strike_selector")
         self._rows_cache: dict[str, list[dict[str, str]]] = {}
 
@@ -72,6 +73,13 @@ class StrikeSelector:
                             return ltp
             except Exception as e:
                 self.logger.warning("failed_to_fetch_spot_price_quote", underlying=underlying, error=str(e))
+
+        # Check PositionTracker cache first before falling back to static scrip master
+        if self.position_tracker:
+            cached_ltp = self.position_tracker.ltp(underlying)
+            if cached_ltp > 0:
+                self.logger.info("spot_price_resolved_from_tracker_cache", underlying=underlying, ltp=cached_ltp)
+                return cached_ltp
 
         rows = self._load_rows(exchange_segment)
         futures_rows = [

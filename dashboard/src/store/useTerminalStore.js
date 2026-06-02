@@ -4,10 +4,12 @@ import { getApiUrl } from '../utils/api';
 // Empty initial state — populated from live API only
 const initialPositions = [];
 const initialMarketWatch = [];
+const savedSymbols = JSON.parse(localStorage.getItem('added_symbols') || '[]');
 
 export const useTerminalStore = create((set, get) => ({
   positions: initialPositions,
-  marketWatch: initialMarketWatch,
+  marketWatch: savedSymbols,
+  addedSymbols: savedSymbols,
   availableMargin: 0,
   marginUsed: 0,
   niftySpot: 23985.0,
@@ -30,7 +32,62 @@ export const useTerminalStore = create((set, get) => ({
   setAvailableExpiries: (expiries) => set({ availableExpiries: expiries }),
   setAvailableUnderlyings: (underlyings) => set({ availableUnderlyings: underlyings }),
   setOptionChain: (chain) => set({ optionChain: chain }),
-  setMarketWatch: (data) => set({ marketWatch: data }),
+  
+  setMarketWatch: (data) => set((state) => {
+    const customAdded = state.addedSymbols || [];
+    const merged = [...data];
+    customAdded.forEach(item => {
+      if (!merged.some(m => m.symbol === item.symbol)) {
+        merged.push(item);
+      }
+    });
+    return { marketWatch: merged };
+  }),
+
+  addSymbolToWatchlist: (symbolObj) => set((state) => {
+    const existing = state.addedSymbols || [];
+    if (existing.some(x => x.symbol === symbolObj.symbol)) return {};
+    
+    const newSymbol = {
+      symbol: symbolObj.symbol,
+      bidQty: 0,
+      bidPrice: symbolObj.ltp || 0,
+      askPrice: symbolObj.ltp || 0,
+      askQty: 0,
+      ltp: symbolObj.ltp || 0,
+      change: 0,
+      volume: 0,
+      oi: 0,
+      oiChange: 0,
+      iv: 0,
+      delta: 0,
+      gamma: 0,
+      theta: 0,
+      vega: 0,
+      ...symbolObj
+    };
+
+    const updated = [...existing, newSymbol];
+    localStorage.setItem('added_symbols', JSON.stringify(updated));
+
+    // Also update current active marketWatch
+    const currentMw = [...state.marketWatch];
+    if (!currentMw.some(m => m.symbol === newSymbol.symbol)) {
+      currentMw.push(newSymbol);
+    }
+
+    return { addedSymbols: updated, marketWatch: currentMw };
+  }),
+
+  removeSymbolFromWatchlist: (symbolName) => set((state) => {
+    const existing = state.addedSymbols || [];
+    const updated = existing.filter(x => x.symbol !== symbolName);
+    localStorage.setItem('added_symbols', JSON.stringify(updated));
+
+    const currentMw = state.marketWatch.filter(x => x.symbol !== symbolName);
+    return { addedSymbols: updated, marketWatch: currentMw };
+  }),
+
   setPositions: (positions) => set({ positions }),
   setMargins: (availableMargin, marginUsed) => set({ availableMargin, marginUsed }),
   setNiftySpot: (niftySpot) => set({ niftySpot }),
@@ -56,11 +113,24 @@ export const useTerminalStore = create((set, get) => ({
     isOpen: false,
     type: 'BUY', // 'BUY' or 'SELL'
     symbol: '',
-    price: 0
+    price: 0,
+    token: '',
+    exchangeSegment: 'nse_fo',
+    expiry: '',
+    lotSize: 0,
   },
 
-  openOrderModal: (type, symbol = '', price = 0) => set({
-    orderModal: { isOpen: true, type, symbol, price }
+  openOrderModal: (type, symbol = '', price = 0, extra = {}) => set({
+    orderModal: {
+      isOpen: true,
+      type,
+      symbol,
+      price,
+      token: extra.token || '',
+      exchangeSegment: extra.exchangeSegment || 'nse_fo',
+      expiry: extra.expiry || '',
+      lotSize: extra.lotSize || 0,
+    }
   }),
 
   closeOrderModal: () => set((state) => ({
@@ -89,6 +159,12 @@ export const useTerminalStore = create((set, get) => ({
       if (item.symbol === symbol) {
         const tickDirection = updates.ltp > item.ltp ? 1 : updates.ltp < item.ltp ? -1 : 0;
         return { ...item, ...updates, tickDirection };
+      }
+      return item;
+    }),
+    addedSymbols: (state.addedSymbols || []).map(item => {
+      if (item.symbol === symbol) {
+        return { ...item, ...updates };
       }
       return item;
     })

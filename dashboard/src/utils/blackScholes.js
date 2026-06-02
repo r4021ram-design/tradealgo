@@ -89,6 +89,90 @@ export function calculateBlackScholes(type, S, K, T, r, v, q = 0) {
 }
 
 /**
+ * Calculate Implied Volatility using Newton-Raphson + Bisection fallback.
+ * @param {string} type 'CE' or 'PE'
+ * @param {number} S Spot price
+ * @param {number} K Strike price
+ * @param {number} T Time to expiry in years
+ * @param {number} r Risk-free rate (decimal)
+ * @param {number} marketPrice Market LTP
+ * @returns {number} IV as decimal (e.g. 0.20 = 20%)
+ */
+export function impliedVolatility(type, S, K, T, r, marketPrice) {
+  if (T <= 0 || marketPrice <= 0 || S <= 0 || K <= 0) return 0;
+  
+  const isCall = type.toLowerCase() === 'call' || type.toLowerCase() === 'ce';
+  const intrinsic = isCall ? Math.max(0, S - K) : Math.max(0, K - S);
+  
+  if (marketPrice < intrinsic * 0.80) return 0.01; // minimal IV for deep ITM
+  
+  const timeValue = marketPrice - intrinsic;
+  // Brenner-Subrahmanyam initial guess
+  let sigma = timeValue > 0 
+    ? Math.max(0.05, Math.min(Math.sqrt(2 * Math.PI / T) * (timeValue / S), 3.0))
+    : 0.2;
+  
+  // Newton-Raphson
+  for (let i = 0; i < 100; i++) {
+    const bs = calculateBlackScholes(type, S, K, T, r, sigma);
+    const diff = bs.price - marketPrice;
+    if (Math.abs(diff) < 1e-6) return sigma;
+    
+    const vegaRaw = S * ND(
+      (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T))
+    ) * Math.sqrt(T);
+    
+    if (vegaRaw < 1e-10) break;
+    sigma -= diff / vegaRaw;
+    sigma = Math.max(0.001, Math.min(sigma, 5.0));
+  }
+  
+  // Bisection fallback
+  let lo = 0.01, hi = 5.0;
+  for (let i = 0; i < 100; i++) {
+    const mid = (lo + hi) / 2;
+    const bs = calculateBlackScholes(type, S, K, T, r, mid);
+    if (bs.price < marketPrice) lo = mid;
+    else hi = mid;
+    if (hi - lo < 1e-6) return mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/**
+ * Calculate IV + all Greeks for a single option, given market LTP.
+ * Convenience function for Option Chain client-side calculation.
+ * @param {string} type 'CE' or 'PE'
+ * @param {number} spot Underlying spot price
+ * @param {number} strike Strike price
+ * @param {number} ltp Market LTP of the option
+ * @param {number} daysToExpiry Days remaining to expiry
+ * @param {number} r Risk-free rate (default 0.0525 = 5.25% RBI Repo Rate, matches NSE India)
+ * @returns {{ iv, delta, gamma, theta, vega }}
+ */
+export function calculateIVAndGreeks(type, spot, strike, ltp, daysToExpiry, r = 0.0525) {
+  if (!spot || !strike || !ltp || ltp <= 0 || daysToExpiry <= 0) {
+    return { iv: 0, delta: 0, gamma: 0, theta: 0, vega: 0 };
+  }
+  
+  const T = daysToExpiry / 365.25;
+  const iv = impliedVolatility(type, spot, strike, T, r, ltp);
+  
+  if (iv <= 0.001) {
+    return { iv: 0, delta: 0, gamma: 0, theta: 0, vega: 0 };
+  }
+  
+  const greeks = calculateBlackScholes(type, spot, strike, T, r, iv);
+  return {
+    iv: +(iv * 100).toFixed(2),     // as percentage
+    delta: +greeks.delta.toFixed(4),
+    gamma: +greeks.gamma.toFixed(6),
+    theta: +greeks.theta.toFixed(2),
+    vega: +greeks.vega.toFixed(2)
+  };
+}
+
+/**
  * Helper to calculate payoff at expiration for a multi-leg strategy
  * Supports two leg formats:
  *   - Portfolio store format: { type, size, strike, entryPrice, isOpen }

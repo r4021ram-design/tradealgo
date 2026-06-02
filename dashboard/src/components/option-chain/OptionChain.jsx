@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { useTerminalStore } from '../../store/useTerminalStore';
 import { useOptionChainData } from '../../hooks/useOptionChainData';
+import { calculateIVAndGreeks } from '../../utils/blackScholes';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import './OptionChain.css';
 
@@ -27,11 +28,24 @@ function fmtNum(val, decimals = 2) {
 }
 
 // CE sub-columns: OI Chg | OI | Vol | IV | Δ | Γ | θ | ν | BidQ | Bid | Ask | AskQ | LTP | Chg%
+const getLotSize = (symbol) => {
+  if (!symbol) return 1;
+  const upper = symbol.toUpperCase();
+  if (upper.startsWith('NIFTY')) return 65;
+  if (upper.startsWith('BANKNIFTY')) return 30;
+  if (upper.startsWith('FINNIFTY')) return 60;
+  if (upper.startsWith('MIDCPNIFTY')) return 120;
+  if (upper.startsWith('SENSEX')) return 20;
+  if (upper.startsWith('BANKEX')) return 30;
+  return 1;
+};
+
+// CE sub-columns: OI Chg | OI | Vol | IV | Δ | Γ | θ | ν | BidQ | Bid | Ask | AskQ | LTP | Chg%
 const CE_COLS = ['oiChange', 'oi', 'volume', 'iv', 'delta', 'gamma', 'theta', 'vega', 'bidQty', 'bidPrice', 'askPrice', 'askQty', 'ltp', 'changePct'];
-const CE_LABELS = ['OI Chg', 'OI', 'Vol', 'IV', 'Δ', 'Γ', 'θ', 'ν', 'Bid Q', 'Bid', 'Ask', 'Ask Q', 'LTP', 'Chg%'];
+const CE_LABELS = ['OI Chg', 'OI', 'Vol', 'IV', 'Δ (₹)', 'Γ (₹)', 'θ (₹)', 'ν (₹)', 'Bid Q', 'Bid', 'Ask', 'Ask Q', 'LTP', 'Chg%'];
 // PE sub-columns mirror: Chg% | LTP | BidQ | Bid | Ask | AskQ | ν | θ | Γ | Δ | IV | Vol | OI | OI Chg
 const PE_COLS = ['changePct', 'ltp', 'bidQty', 'bidPrice', 'askPrice', 'askQty', 'vega', 'theta', 'gamma', 'delta', 'iv', 'volume', 'oi', 'oiChange'];
-const PE_LABELS = ['Chg%', 'LTP', 'Bid Q', 'Bid', 'Ask', 'Ask Q', 'ν', 'θ', 'Γ', 'Δ', 'IV', 'Vol', 'OI', 'OI Chg'];
+const PE_LABELS = ['Chg%', 'LTP', 'Bid Q', 'Bid', 'Ask', 'Ask Q', 'ν (₹)', 'θ (₹)', 'Γ (₹)', 'Δ (₹)', 'IV', 'Vol', 'OI', 'OI Chg'];
 
 function CellValue({ col, data, side }) {
   const val = data[col];
@@ -117,15 +131,21 @@ export const OptionChain = () => {
   const activePeCols = useMemo(() => showGreeks ? PE_COLS : PE_COLS.filter(c => !greeksCols.includes(c)), [showGreeks]);
   const activePeLabels = useMemo(() => showGreeks ? PE_LABELS : PE_LABELS.filter((_, i) => !greeksCols.includes(PE_COLS[i])), [showGreeks]);
 
-  const handleTradeClick = (e, type, strike, optType, price) => {
+  const handleTradeClick = (e, type, row, optType, price) => {
     e.stopPropagation();
     if (!selectedExpiry) {
       alert('Please select a valid expiry date first.');
       return;
     }
-    const expiryShort = selectedExpiry.split(' ').slice(0, 2).join(' ').toUpperCase();
-    const symbol = `${selectedUnderlying} ${expiryShort} ${strike} ${optType}`;
-    openOrderModal(type, symbol, price);
+    // Use the real trading symbol from the API response (resolved from contracts.db)
+    const symbol = optType === 'CE' ? row.ce_symbol : row.pe_symbol;
+    const token = optType === 'CE' ? row.ce_token : row.pe_token;
+    openOrderModal(type, symbol, price, {
+      token,
+      exchangeSegment: row.exchangeSegment || 'nse_fo',
+      expiry: selectedExpiry,
+      lotSize: row.lot_size || 0,
+    });
   };
 
   const atmIndex = useMemo(() => {
@@ -144,12 +164,98 @@ export const OptionChain = () => {
     return closestIdx;
   }, [optionChain, spotPrice]);
 
+  // Calculate DTE (Days to Expiry) from selected expiry
+  const daysToExpiry = useMemo(() => {
+    if (!selectedExpiry) return 5;
+    try {
+      const parts = selectedExpiry.split('-');
+      if (parts.length === 3) {
+        const expiryDate = new Date(selectedExpiry);
+        if (!isNaN(expiryDate.getTime())) {
+          // Set expiry time to 15:30 IST
+          expiryDate.setHours(15, 30, 0, 0);
+          const now = new Date();
+          const diffMs = expiryDate - now;
+          return Math.max(0.01, diffMs / (1000 * 60 * 60 * 24));
+        }
+      }
+      // Try dd-MMM-yyyy format (e.g., "02-Jun-2026")
+      const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+      const [day, mon, year] = parts;
+      const monthIdx = months[mon];
+      if (monthIdx !== undefined) {
+        const expiryDate = new Date(parseInt(year), monthIdx, parseInt(day), 15, 30, 0);
+        const now = new Date();
+        const diffMs = expiryDate - now;
+        return Math.max(0.01, diffMs / (1000 * 60 * 60 * 24));
+      }
+    } catch (e) {
+      console.warn('[OptionChain] Failed to parse expiry for DTE:', selectedExpiry);
+    }
+    return 5;
+  }, [selectedExpiry]);
+
   const visibleChain = useMemo(() => {
-    if (showFullChain || atmIndex === -1) return optionChain;
-    const start = Math.max(0, atmIndex - 20);
-    const end = Math.min(optionChain.length, atmIndex + 21);
-    return optionChain.slice(start, end);
-  }, [optionChain, showFullChain, atmIndex]);
+    let chain = optionChain || [];
+    if (!showFullChain && atmIndex !== -1) {
+      const start = Math.max(0, atmIndex - 20);
+      const end = Math.min(chain.length, atmIndex + 21);
+      chain = chain.slice(start, end);
+    }
+
+    const defaultSideData = {
+      ltp: 0,
+      oi: 0,
+      oiChange: 0,
+      iv: 0,
+      delta: 0,
+      gamma: 0,
+      theta: 0,
+      vega: 0,
+      bidPrice: 0,
+      bidQty: 0,
+      askPrice: 0,
+      askQty: 0,
+      volume: 0,
+      tickDirection: 0,
+      changePct: 0
+    };
+
+    return chain.map(row => {
+      if (!row) return row;
+      let ce = row.ce ? { ...defaultSideData, ...row.ce } : { ...defaultSideData };
+      let pe = row.pe ? { ...defaultSideData, ...row.pe } : { ...defaultSideData };
+      let changed = false;
+
+      // Use mid-price for IV calculation (matches NSE methodology)
+      const ceMid = (ce.bidPrice > 0 && ce.askPrice > 0) ? (ce.bidPrice + ce.askPrice) / 2 : ce.ltp;
+      const peMid = (pe.bidPrice > 0 && pe.askPrice > 0) ? (pe.bidPrice + pe.askPrice) / 2 : pe.ltp;
+
+      if (!spotPrice || !showGreeks) {
+        return { ...row, ce, pe };
+      }
+
+      // If CE has price but IV is 0 → compute client-side
+      if (ceMid > 0 && (!ce.iv || ce.iv === 0)) {
+        const g = calculateIVAndGreeks('CE', spotPrice, row.strike, ceMid, daysToExpiry);
+        if (g.iv > 0) {
+          ce = { ...ce, iv: g.iv, delta: g.delta, gamma: g.gamma, theta: g.theta, vega: g.vega };
+          changed = true;
+        }
+      }
+
+      // If PE has price but IV is 0 → compute client-side
+      if (peMid > 0 && (!pe.iv || pe.iv === 0)) {
+        const g = calculateIVAndGreeks('PE', spotPrice, row.strike, peMid, daysToExpiry);
+        if (g.iv > 0) {
+          pe = { ...pe, iv: g.iv, delta: g.delta, gamma: g.gamma, theta: g.theta, vega: g.vega };
+          changed = true;
+        }
+      }
+
+      return { ...row, ce, pe };
+    });
+  }, [optionChain, showFullChain, atmIndex, spotPrice, showGreeks, daysToExpiry]);
 
   // Auto-scroll to ATM on first load
   useEffect(() => {
@@ -179,17 +285,40 @@ export const OptionChain = () => {
     let maxCeOiChg = 0, maxPeOiChg = 0;
     let maxCeVol = 0, maxPeVol = 0;
     let pcr = 0;
-    optionChain.forEach(r => {
-      ceOiTotal += r.ce.oi || 0;
-      peOiTotal += r.pe.oi || 0;
-      ceVolTotal += r.ce.volume || 0;
-      peVolTotal += r.pe.volume || 0;
-      if (r.ce.oi > maxCeOi) maxCeOi = r.ce.oi;
-      if (r.pe.oi > maxPeOi) maxPeOi = r.pe.oi;
-      if (r.ce.oiChange > maxCeOiChg) maxCeOiChg = r.ce.oiChange;
-      if (r.pe.oiChange > maxPeOiChg) maxPeOiChg = r.pe.oiChange;
-      if (r.ce.volume > maxCeVol) maxCeVol = r.ce.volume;
-      if (r.pe.volume > maxPeVol) maxPeVol = r.pe.volume;
+
+    const defaultSideData = {
+      ltp: 0,
+      oi: 0,
+      oiChange: 0,
+      iv: 0,
+      delta: 0,
+      gamma: 0,
+      theta: 0,
+      vega: 0,
+      bidPrice: 0,
+      bidQty: 0,
+      askPrice: 0,
+      askQty: 0,
+      volume: 0,
+      tickDirection: 0,
+      changePct: 0
+    };
+
+    (optionChain || []).forEach(r => {
+      if (!r) return;
+      const ce = r.ce ? { ...defaultSideData, ...r.ce } : { ...defaultSideData };
+      const pe = r.pe ? { ...defaultSideData, ...r.pe } : { ...defaultSideData };
+
+      ceOiTotal += ce.oi || 0;
+      peOiTotal += pe.oi || 0;
+      ceVolTotal += ce.volume || 0;
+      peVolTotal += pe.volume || 0;
+      if (ce.oi > maxCeOi) maxCeOi = ce.oi;
+      if (pe.oi > maxPeOi) maxPeOi = pe.oi;
+      if (ce.oiChange > maxCeOiChg) maxCeOiChg = ce.oiChange;
+      if (pe.oiChange > maxPeOiChg) maxPeOiChg = pe.oiChange;
+      if (ce.volume > maxCeVol) maxCeVol = ce.volume;
+      if (pe.volume > maxPeVol) maxPeVol = pe.volume;
     });
     pcr = ceOiTotal > 0 ? peOiTotal / ceOiTotal : 0;
     return { ceOiTotal, peOiTotal, ceVolTotal, peVolTotal, pcr, maxCeOi, maxPeOi, maxCeOiChg, maxPeOiChg, maxCeVol, maxPeVol };
@@ -308,11 +437,13 @@ export const OptionChain = () => {
             </tr>
           </thead>
           <tbody>
-            {visibleChain.map(row => (
-              <tr
-                key={row.strike}
-                className={row.isATM ? 'oc-atm-row' : ''}
-              >
+            {visibleChain.map(row => {
+              const lotSize = row.lot_size || getLotSize(selectedUnderlying) || 1;
+              return (
+                <tr
+                  key={row.strike}
+                  className={row.isATM ? 'oc-atm-row' : ''}
+                >
                 {/* CE side */}
                 {activeCeCols.map((col, i) => {
                   const itmClass = row.isITM_CE ? ' oc-itm-ce' : '';
@@ -343,18 +474,18 @@ export const OptionChain = () => {
                         <div className="oc-trade-cell">
                           <span className="oc-trade-val">{fmtNum(row.ce[col], 2)}</span>
                           <div className="oc-trade-btns">
-                            <button className="oc-btn-buy" onClick={(e) => handleTradeClick(e, 'BUY', row.strike, 'CE', row.ce[col])}>B</button>
-                            <button className="oc-btn-sell" onClick={(e) => handleTradeClick(e, 'SELL', row.strike, 'CE', row.ce[col])}>S</button>
+                            <button className="oc-btn-buy" onClick={(e) => handleTradeClick(e, 'BUY', row, 'CE', row.ce[col])}>B</button>
+                            <button className="oc-btn-sell" onClick={(e) => handleTradeClick(e, 'SELL', row, 'CE', row.ce[col])}>S</button>
                           </div>
                         </div>
                       ) :
                        col === 'oiChange' ? ((row.ce.oiChange > 0 ? '+' : '') + fmtOI(row.ce.oiChange)) :
                        col === 'volume' ? fmtVol(row.ce.volume) :
                        col === 'iv' ? fmtNum(row.ce.iv, 2) + '%' :
-                       col === 'delta' ? fmtNum(row.ce.delta, 4) :
-                       col === 'gamma' ? fmtNum(row.ce.gamma, 5) :
-                       col === 'theta' ? fmtNum(row.ce.theta, 2) :
-                       col === 'vega' ? fmtNum(row.ce.vega, 2) :
+                       col === 'delta' ? fmtNum(row.ce.delta * lotSize, 2) :
+                       col === 'gamma' ? fmtNum(row.ce.gamma * lotSize, 4) :
+                       col === 'theta' ? fmtNum(row.ce.theta * lotSize, 2) :
+                       col === 'vega' ? fmtNum(row.ce.vega * lotSize, 2) :
                        col === 'changePct' ? ((row.ce.changePct > 0 ? '+' : '') + fmtNum(row.ce.changePct, 2) + '%') :
                        col === 'bidQty' || col === 'askQty' ? (row.ce[col]?.toLocaleString() || '-') :
                        '-'}
@@ -395,18 +526,18 @@ export const OptionChain = () => {
                         <div className="oc-trade-cell">
                           <span className="oc-trade-val">{fmtNum(row.pe[col], 2)}</span>
                           <div className="oc-trade-btns">
-                            <button className="oc-btn-buy" onClick={(e) => handleTradeClick(e, 'BUY', row.strike, 'PE', row.pe[col])}>B</button>
-                            <button className="oc-btn-sell" onClick={(e) => handleTradeClick(e, 'SELL', row.strike, 'PE', row.pe[col])}>S</button>
+                            <button className="oc-btn-buy" onClick={(e) => handleTradeClick(e, 'BUY', row, 'PE', row.pe[col])}>B</button>
+                            <button className="oc-btn-sell" onClick={(e) => handleTradeClick(e, 'SELL', row, 'PE', row.pe[col])}>S</button>
                           </div>
                         </div>
                       ) :
                        col === 'oiChange' ? ((row.pe.oiChange > 0 ? '+' : '') + fmtOI(row.pe.oiChange)) :
                        col === 'volume' ? fmtVol(row.pe.volume) :
                        col === 'iv' ? fmtNum(row.pe.iv, 2) + '%' :
-                       col === 'delta' ? fmtNum(row.pe.delta, 4) :
-                       col === 'gamma' ? fmtNum(row.pe.gamma, 5) :
-                       col === 'theta' ? fmtNum(row.pe.theta, 2) :
-                       col === 'vega' ? fmtNum(row.pe.vega, 2) :
+                       col === 'delta' ? fmtNum(row.pe.delta * lotSize, 2) :
+                       col === 'gamma' ? fmtNum(row.pe.gamma * lotSize, 4) :
+                       col === 'theta' ? fmtNum(row.pe.theta * lotSize, 2) :
+                       col === 'vega' ? fmtNum(row.pe.vega * lotSize, 2) :
                        col === 'changePct' ? ((row.pe.changePct > 0 ? '+' : '') + fmtNum(row.pe.changePct, 2) + '%') :
                        col === 'bidQty' || col === 'askQty' ? (row.pe[col]?.toLocaleString() || '-') :
                        '-'}
@@ -414,7 +545,7 @@ export const OptionChain = () => {
                   );
                 })}
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>

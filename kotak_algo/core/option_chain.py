@@ -51,33 +51,40 @@ class OptionChainService:
 
         self.logger.info("resolved_option_chain_expiry", underlying=underlying, expiry=expiry)
 
-        # 2. Dynamic Live Spot Price Fetching (NSE Index or nearest Month Future quote)
+        # 2. Dynamic Live Spot Price Fetching
+        # Priority: Actual Index quote (matches NSE) → Futures LTP (fallback)
         spot = 0.0
-        # Try Futures LTP first
-        cursor.execute(
-            "SELECT token FROM contracts WHERE symbol = ? AND instrument_type = 'FUTIDX' AND expiry >= DATE('now') ORDER BY expiry ASC LIMIT 1",
-            (underlying.upper(),)
-        )
-        fut_row = cursor.fetchone()
-        if fut_row:
-            fut_token = fut_row[0]
-            try:
-                quotes = self.broker.quotes(instrument_tokens=[{"instrument_token": fut_token, "exchange_segment": exchange_segment}])
-                parsed = self._parse_quotes(quotes)
-                spot = parsed.get(fut_token, {}).get("ltp", 0.0)
-            except Exception as e:
-                self.logger.warning("futures_quote_fetch_failed", token=fut_token, error=str(e))
+        futures_spot = 0.0  # Track futures separately for reference
 
-        # Try Index quote fallback
+        # Try actual Index quote FIRST (matches NSE India methodology)
+        idx_token = "26000" if underlying.upper() == "NIFTY" else "26009" if underlying.upper() == "BANKNIFTY" else None
+        if idx_token:
+            try:
+                quotes = self.broker.quotes(instrument_tokens=[{"instrument_token": idx_token, "exchange_segment": "nse_cm"}], is_index=True)
+                parsed = self._parse_quotes(quotes)
+                spot = parsed.get(idx_token, {}).get("ltp", 0.0)
+                if spot > 0:
+                    self.logger.info("using_actual_index_spot", underlying=underlying, spot=spot)
+            except Exception as e:
+                self.logger.warning("index_quote_fetch_failed", token=idx_token, error=str(e))
+
+        # Fallback: Try Futures LTP if index quote unavailable
         if spot <= 0:
-            idx_token = "26000" if underlying.upper() == "NIFTY" else "26009" if underlying.upper() == "BANKNIFTY" else None
-            if idx_token:
+            cursor.execute(
+                "SELECT token FROM contracts WHERE symbol = ? AND instrument_type = 'FUTIDX' AND expiry >= DATE('now') ORDER BY expiry ASC LIMIT 1",
+                (underlying.upper(),)
+            )
+            fut_row = cursor.fetchone()
+            if fut_row:
+                fut_token = fut_row[0]
                 try:
-                    quotes = self.broker.quotes(instrument_tokens=[{"instrument_token": idx_token, "exchange_segment": "nse_cm"}], is_index=True)
+                    quotes = self.broker.quotes(instrument_tokens=[{"instrument_token": fut_token, "exchange_segment": exchange_segment}])
                     parsed = self._parse_quotes(quotes)
-                    spot = parsed.get(idx_token, {}).get("ltp", 0.0)
+                    spot = parsed.get(fut_token, {}).get("ltp", 0.0)
+                    if spot > 0:
+                        self.logger.info("using_futures_spot_fallback", underlying=underlying, spot=spot)
                 except Exception as e:
-                    self.logger.warning("index_quote_fetch_failed", token=idx_token, error=str(e))
+                    self.logger.warning("futures_quote_fetch_failed", token=fut_token, error=str(e))
 
         # Ultimate average strike fallback if offline
         if spot <= 0:

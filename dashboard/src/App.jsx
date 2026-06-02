@@ -250,10 +250,34 @@ function UnlockedApp() {
     const handleKeyDown = (e) => {
       if (e.key === 'F1') {
         e.preventDefault();
-        openOrderModal('BUY', 'NIFTY 24 APR 22000 CE', 110.50);
+        const state = useTerminalStore.getState();
+        const atmRow = state.optionChain.find(r => r.isATM);
+        if (atmRow && atmRow.ce_symbol) {
+          openOrderModal('BUY', atmRow.ce_symbol, atmRow.ce?.ltp || 110.50, {
+            token: atmRow.ce_token,
+            exchangeSegment: atmRow.exchangeSegment || 'nse_fo',
+            expiry: state.selectedExpiry,
+            lotSize: atmRow.lot_size || 65
+          });
+        } else {
+          // Fallback if option chain not loaded yet (valid active 2026-06-02 contract)
+          openOrderModal('BUY', 'NIFTY2660224000CE', 110.50, { expiry: '02-Jun-2026', lotSize: 65 });
+        }
       } else if (e.key === 'F2') {
         e.preventDefault();
-        openOrderModal('SELL', 'NIFTY 24 APR 22000 CE', 110.50);
+        const state = useTerminalStore.getState();
+        const atmRow = state.optionChain.find(r => r.isATM);
+        if (atmRow && atmRow.pe_symbol) {
+          openOrderModal('SELL', atmRow.pe_symbol, atmRow.pe?.ltp || 110.50, {
+            token: atmRow.pe_token,
+            exchangeSegment: atmRow.exchangeSegment || 'nse_fo',
+            expiry: state.selectedExpiry,
+            lotSize: atmRow.lot_size || 65
+          });
+        } else {
+          // Fallback if option chain not loaded yet (valid active 2026-06-02 contract)
+          openOrderModal('SELL', 'NIFTY2660224000PE', 110.50, { expiry: '02-Jun-2026', lotSize: 65 });
+        }
       } else if (e.key === 'Escape') {
         closeOrderModal();
       }
@@ -265,14 +289,7 @@ function UnlockedApp() {
 
   return (
     <MainLayout>
-      {activeView === 'oms' ? (
-        <OMSDashboard />
-      ) : (
-        <SplitPane 
-          leftPane={<MarketWatch />}
-          rightPane={<NetPositionGrid />}
-        />
-      )}
+      {activeView === 'oms' ? <OMSDashboard /> : <NetPositionGrid />}
       <OrderModal />
     </MainLayout>
   );

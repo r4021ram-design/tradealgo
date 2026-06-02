@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import { getApiUrl } from '../../utils/api';
 
 export const OrderModal = () => {
-  const { isOpen, type, symbol, price } = useTerminalStore(state => state.orderModal);
+  const { isOpen, type, symbol, price, token, exchangeSegment, expiry, lotSize: storeLotSize } = useTerminalStore(state => state.orderModal);
   const availableMargin = useTerminalStore(state => state.availableMargin);
   const closeOrderModal = useTerminalStore(state => state.closeOrderModal);
   
@@ -31,25 +31,49 @@ export const OrderModal = () => {
   // Validation state
   const [error, setError] = useState(null);
 
+  const [resolvedMetadata, setResolvedMetadata] = useState(null);
+
+  useEffect(() => {
+    if (isOpen && symbol) {
+      const fetchMetadata = async () => {
+        try {
+          const response = await fetch(getApiUrl(`/api/contracts/details?trading_symbol=${encodeURIComponent(symbol)}`));
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+              setResolvedMetadata(data);
+            }
+          }
+        } catch (e) {
+          console.error('[OrderModal] Failed to fetch contract details:', e);
+        }
+      };
+      fetchMetadata();
+    } else {
+      setResolvedMetadata(null);
+    }
+  }, [isOpen, symbol]);
+
   // Determine lot size based on symbol prefix
   const getLotSize = (sym) => {
     if (!sym) return 1;
     if (sym.startsWith('NIFTY')) return 65;
     if (sym.startsWith('BANKNIFTY')) return 30;
     if (sym.startsWith('FINNIFTY')) return 60;
-    if (sym.startsWith('MIDCPNIFTY')) return 75;
-    if (sym.startsWith('SENSEX')) return 10;
-    if (sym.startsWith('BANKEX')) return 15;
+    if (sym.startsWith('MIDCPNIFTY')) return 120;
+    if (sym.startsWith('SENSEX')) return 20;
+    if (sym.startsWith('BANKEX')) return 30;
     return 1; // Default for equity
   };
   
-  const lotSize = getLotSize(symbol);
+  const lotSize = (resolvedMetadata && resolvedMetadata.lot_size) ? resolvedMetadata.lot_size : (storeLotSize || getLotSize(symbol));
 
   // Update lot size and price when symbol or price changes
   useEffect(() => {
     if (isOpen) {
       const priceNum = Number(price) || 0;
-      setQty(getLotSize(symbol));
+      const effectiveLotSize = storeLotSize || (resolvedMetadata ? resolvedMetadata.lot_size : getLotSize(symbol));
+      setQty(effectiveLotSize);
       setOrderPrice(priceNum);
       setTriggerPrice(priceNum ? Number((priceNum * 0.98).toFixed(2)) : 0); // Default SL 2% below
       setError(null);
@@ -63,7 +87,17 @@ export const OrderModal = () => {
         setOrderType('Market');
       }
     }
-  }, [isOpen, symbol, price, activeTab]);
+  }, [isOpen, symbol, price, storeLotSize, activeTab]);
+
+  // Sync Qty if metadata updates after open
+  useEffect(() => {
+    if (isOpen && resolvedMetadata && resolvedMetadata.lot_size) {
+      const guessedLotSize = storeLotSize || getLotSize(symbol);
+      if (qty === guessedLotSize || qty === 1) {
+        setQty(resolvedMetadata.lot_size);
+      }
+    }
+  }, [resolvedMetadata, isOpen, storeLotSize]);
 
   // Handle Tab changes and enforce constraints
   const handleTabChange = (tab) => {
@@ -160,18 +194,23 @@ export const OrderModal = () => {
       return;
     }
     
+    const resolvedSegment = (resolvedMetadata && resolvedMetadata.exchange_segment) ? resolvedMetadata.exchange_segment : (exchangeSegment || ((symbol && (symbol.startsWith('SENSEX') || symbol.startsWith('BANKEX'))) ? 'bse_fo' : 'nse_fo'));
+    const resolvedToken = (resolvedMetadata && resolvedMetadata.token) ? resolvedMetadata.token : (token || symbol);
+    const resolvedExpiry = (resolvedMetadata && resolvedMetadata.expiry) ? resolvedMetadata.expiry : (expiry || null);
+
     const apiPayload = {
       trading_symbol: symbol,
-      token: symbol,
+      token: resolvedToken,
       side: isBuy ? 'B' : 'S',
-      exchange_segment: 'nse_fo',
+      exchange_segment: resolvedSegment,
       product: product === 'CNC' ? 'CNC' : 'NRML',
       order_type: orderType === 'Limit' ? 'L' : orderType === 'Market' ? 'MKT' : orderType,
       quantity: qty,
-      opt_type: symbol.endsWith('PE') ? 'PE' : 'CE',
+      opt_type: (symbol && symbol.endsWith('PE')) ? 'PE' : 'CE',
       transaction_type: isBuy ? 'B' : 'S',
       price: String(orderPrice),
-      trigger_price: String(triggerPrice)
+      trigger_price: String(triggerPrice),
+      expiry: resolvedExpiry
     };
 
     try {
@@ -210,7 +249,7 @@ export const OrderModal = () => {
                <span className="uppercase">{symbol || 'Select Symbol'}</span>
                <span className="flex items-center gap-1">
                  <div className="w-2 h-2 bg-white rounded-full"></div>
-                 NSE ₹{priceNum.toFixed(2)}
+                 {(((resolvedMetadata && resolvedMetadata.exchange_segment) || exchangeSegment || '').split('_')[0] || 'NSE').toUpperCase()} ₹{priceNum.toFixed(2)}
                </span>
                <span className="ml-4 text-xs font-normal opacity-80">Lot size: {lotSize}</span>
             </div>

@@ -1,6 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 
+import { parseOptionSymbol } from '../../utils/symbolParser';
+
 export const OrdersGrid = ({ orders, type, cancelOrder, modifyOrder }) => {
   const gridRef = useRef();
   const [modifyingOrder, setModifyingOrder] = useState(null);
@@ -61,8 +63,47 @@ export const OrdersGrid = ({ orders, type, cancelOrder, modifyOrder }) => {
   };
 
   const columnDefs = useMemo(() => [
-    { field: 'order_id', headerName: 'Order ID', width: 150 },
-    { field: 'trading_symbol', headerName: 'Symbol', width: 200 },
+    { field: 'order_id', headerName: 'Order ID', width: 140 },
+    {
+      headerName: 'Underlying',
+      width: 100,
+      valueGetter: params => {
+        if (!params.data || !params.data.trading_symbol) return '';
+        return parseOptionSymbol(params.data.trading_symbol).underlying;
+      }
+    },
+    {
+      headerName: 'Expiry',
+      width: 120,
+      valueGetter: params => {
+        if (!params.data || !params.data.trading_symbol) return '';
+        return parseOptionSymbol(params.data.trading_symbol).expiry;
+      }
+    },
+    {
+      headerName: 'Strike Price',
+      width: 100,
+      type: 'numericColumn',
+      valueGetter: params => {
+        if (!params.data || !params.data.trading_symbol) return null;
+        const val = parseOptionSymbol(params.data.trading_symbol).strike;
+        return val !== '-' ? Number(val) : null;
+      },
+      valueFormatter: params => params.value !== null ? params.value.toFixed(2) : '-'
+    },
+    {
+      headerName: 'Option Type',
+      width: 100,
+      valueGetter: params => {
+        if (!params.data || !params.data.trading_symbol) return '';
+        return parseOptionSymbol(params.data.trading_symbol).type;
+      },
+      cellStyle: params => {
+        if (params.value === 'CE') return { color: '#008800', fontWeight: 'bold' };
+        if (params.value === 'PE') return { color: '#cc0000', fontWeight: 'bold' };
+        return { fontWeight: 'bold' };
+      }
+    },
     { field: 'transaction_type', headerName: 'B/S', width: 80, cellStyle: params => ({ color: params.value === 'B' ? '#008800' : '#cc0000', fontWeight: 'bold' }) },
     { field: 'order_type', headerName: 'Type', width: 100 },
     { field: 'payload.tag', headerName: 'Tag', width: 120, valueFormatter: p => p.value || 'MANUAL' },

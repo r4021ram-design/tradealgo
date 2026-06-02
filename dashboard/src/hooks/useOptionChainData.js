@@ -92,6 +92,10 @@ export function useOptionChainData() {
         isATM: row.strike === atm,
         isITM_CE: row.strike < spot,
         isITM_PE: row.strike > spot,
+        ce_token: row.ce_token || '',
+        pe_token: row.pe_token || '',
+        lot_size: row.lot_size || data.lotSize || 0,
+        exchangeSegment: data.exchangeSegment || 'nse_fo',
       }));
 
       setOptionChain(processedChain);
@@ -107,6 +111,8 @@ export function useOptionChainData() {
       // Update Market Watch with ATM legs and NIFTY/BANKNIFTY spots
       const atmRow = processedChain.find(r => r.isATM);
       if (atmRow) {
+        const ce = atmRow.ce || {};
+        const pe = atmRow.pe || {};
         const niftySpot = useTerminalStore.getState().niftySpot;
         const bankNiftySpot = useTerminalStore.getState().bankNiftySpot;
         const mw = [
@@ -114,20 +120,20 @@ export function useOptionChainData() {
           { symbol: 'BANKNIFTY', ltp: bankNiftySpot, change: 0.0, bidPrice: bankNiftySpot, askPrice: bankNiftySpot, volume: 0, oi: 0 },
           { 
             symbol: `${underlying} ATM CE`, 
-            ltp: atmRow.ce.ltp, 
-            bidPrice: atmRow.ce.bidPrice, 
-            askPrice: atmRow.ce.askPrice, 
-            oi: atmRow.ce.oi, 
-            iv: atmRow.ce.iv,
+            ltp: ce.ltp || 0, 
+            bidPrice: ce.bidPrice || 0, 
+            askPrice: ce.askPrice || 0, 
+            oi: ce.oi || 0, 
+            iv: ce.iv || 0,
             change: 0
           },
           { 
             symbol: `${underlying} ATM PE`, 
-            ltp: atmRow.pe.ltp, 
-            bidPrice: atmRow.pe.bidPrice, 
-            askPrice: atmRow.pe.askPrice, 
-            oi: atmRow.pe.oi, 
-            iv: atmRow.pe.iv,
+            ltp: pe.ltp || 0, 
+            bidPrice: pe.bidPrice || 0, 
+            askPrice: pe.askPrice || 0, 
+            oi: pe.oi || 0, 
+            iv: pe.iv || 0,
             change: 0
           }
         ];

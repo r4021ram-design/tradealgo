@@ -4,6 +4,7 @@ import { useTerminalStore } from '../../store/useTerminalStore';
 import { OptionChain } from '../option-chain/OptionChain';
 import { StrategyBuilder } from '../strategy/StrategyBuilder';
 import { OptionPortfolioManager } from '../portfolio/OptionPortfolioManager';
+import { MarketWatch } from '../market-watch/MarketWatch';
 import { OrdersGrid } from './OrdersGrid';
 import { useOrdersData } from '../../hooks/useOrdersData';
 import clsx from 'clsx';
@@ -24,17 +25,50 @@ const SquareOffRenderer = (props) => {
   );
 };
 
+import { parseOptionSymbol } from '../../utils/symbolParser';
+
 export const NetPositionGrid = () => {
   const gridRef = useRef();
   const positions = useTerminalStore(state => state.positions);
-  const [activeTab, setActiveTab] = useState('Net Position');
+  const [activeTab, setActiveTab] = useState('Market Watch');
   const { pendingOrders, executedOrders, cancelOrder, modifyOrder } = useOrdersData();
 
-  const tabs = ['Net Position', 'Option Chain', 'Strategy Builder', 'Portfolio Manager', 'Pending Orders', 'Executed Trades'];
+  const tabs = ['Market Watch', 'Net Position', 'Option Chain', 'Strategy Builder', 'Portfolio Manager', 'Pending Orders', 'Executed Trades'];
 
   const columnDefs = useMemo(() => [
-    { field: 'underlying', headerName: 'Underlying', width: 110 },
-    { field: 'symbol', headerName: 'Symbol', width: 200 },
+    { field: 'underlying', headerName: 'Underlying', width: 100 },
+    {
+      headerName: 'Expiry',
+      width: 120,
+      valueGetter: params => {
+        if (!params.data || !params.data.symbol) return '';
+        return parseOptionSymbol(params.data.symbol).expiry;
+      }
+    },
+    {
+      headerName: 'Strike Price',
+      width: 100,
+      type: 'numericColumn',
+      valueGetter: params => {
+        if (!params.data || !params.data.symbol) return null;
+        const val = parseOptionSymbol(params.data.symbol).strike;
+        return val !== '-' ? Number(val) : null;
+      },
+      valueFormatter: params => params.value !== null ? params.value.toFixed(2) : '-'
+    },
+    {
+      headerName: 'Option Type',
+      width: 100,
+      valueGetter: params => {
+        if (!params.data || !params.data.symbol) return '';
+        return parseOptionSymbol(params.data.symbol).type;
+      },
+      cellStyle: params => {
+        if (params.value === 'CE') return { color: '#008800', fontWeight: 'bold' };
+        if (params.value === 'PE') return { color: '#cc0000', fontWeight: 'bold' };
+        return { fontWeight: 'bold' };
+      }
+    },
     { 
       field: 'netQty', 
       headerName: 'Net Qty', 
@@ -80,7 +114,7 @@ export const NetPositionGrid = () => {
       aggFunc: 'sum'
     },
     {
-      headerName: 'Net Delta',
+      headerName: 'Net Delta (₹)',
       width: 100,
       type: 'numericColumn',
       valueGetter: params => {
@@ -91,7 +125,7 @@ export const NetPositionGrid = () => {
       aggFunc: 'sum'
     },
     {
-      headerName: 'Net Theta',
+      headerName: 'Net Theta (₹)',
       width: 100,
       type: 'numericColumn',
       valueGetter: params => {
@@ -148,7 +182,9 @@ export const NetPositionGrid = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'Net Position' ? (
+        {activeTab === 'Market Watch' ? (
+          <MarketWatch />
+        ) : activeTab === 'Net Position' ? (
           <div className="h-full ag-theme-alpine">
             <AgGridReact
               ref={gridRef}

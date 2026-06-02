@@ -40,7 +40,7 @@ class BaseStrategy(ABC):
         self.logger = (logger or get_logger(name)).bind(component=name)
         
         self._state = StrategyState.IDLE
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self.entered_slots: set[str] = set()
         self.legs: list[dict[str, Any]] = []
 
@@ -122,7 +122,7 @@ class BaseStrategy(ABC):
             except Exception as exc:
                 self.logger.exception("strategy_entry_failed", strategy=self.name, error=str(exc))
                 self.notifier.send(f"❌ {self.name} entry failed: {exc}")
-                self.cancel_pending()
+                self.square_off(reason="entry_failed_cleanup")
                 self._state = StrategyState.IDLE # Allow retry next cycle if possible
                 
         finally:

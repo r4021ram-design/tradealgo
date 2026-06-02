@@ -68,7 +68,7 @@ def create_container(config_path: Path) -> Container:
     scheduler = TimeScheduler(logger=logger)
     container.register(TimeScheduler, instance=scheduler)
 
-    strike_selector = StrikeSelector(broker, logger=logger)
+    strike_selector = StrikeSelector(broker, position_tracker=position_tracker, logger=logger)
     container.register(StrikeSelector, instance=strike_selector)
 
     nse_reference = NSEReferenceUpdater(

@@ -46,27 +46,29 @@ export const TopBar = () => {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex items-center bg-slate-200 p-0.5 rounded border border-[#ccc]">
+      {/* Active Mode Switcher */}
+      <div className="flex items-center bg-[#f0f0f0] border border-[#ccc] p-0.5 rounded">
         <button
           onClick={() => setActiveView('terminal')}
-          className={`px-3 py-0.5 text-xs font-bold transition rounded ${
+          className={`px-3 py-0.5 text-xs font-bold transition-all duration-250 cursor-pointer rounded-sm ${
             activeView === 'terminal'
-              ? 'bg-[#004085] text-white shadow-sm'
-              : 'text-black hover:bg-slate-350'
+              ? 'bg-[#002060] text-white shadow-sm'
+              : 'text-[#555] hover:text-black hover:bg-[#e0e0e0]'
           }`}
+          style={{ fontFamily: 'Calibri, Arial, sans-serif' }}
         >
           LIVE TERMINAL
         </button>
         <button
           onClick={() => setActiveView('oms')}
-          className={`px-3 py-0.5 text-xs font-bold transition rounded ${
+          className={`px-3 py-0.5 text-xs font-bold transition-all duration-250 cursor-pointer rounded-sm ${
             activeView === 'oms'
-              ? 'bg-[#004085] text-white shadow-sm'
-              : 'text-black hover:bg-slate-350'
+              ? 'bg-[#002060] text-white shadow-sm'
+              : 'text-[#555] hover:text-black hover:bg-[#e0e0e0]'
           }`}
+          style={{ fontFamily: 'Calibri, Arial, sans-serif' }}
         >
-          OMS POSITION ENGINE
+          OMS SIMULATOR
         </button>
       </div>
 

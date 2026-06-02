@@ -19,12 +19,57 @@ class ContractService:
         return query.all()
 
     def search_contracts(self, query_str: str, limit: int = 50) -> List[Contract]:
-        return self.db.query(Contract).filter(
+        query_upper = query_str.upper().strip()
+        if not query_upper:
+            return []
+
+        # 1. Synthesize EQ contract for matching symbols in DB (F&O underlying stocks/indices)
+        matching_symbols = self.db.query(Contract.symbol).filter(
+            Contract.symbol.like(f"{query_upper}%")
+        ).distinct().limit(5).all()
+        matching_symbols = [r[0] for r in matching_symbols if r[0]]
+
+        # 2. Query Futures (FUT) matching the query
+        futures = self.db.query(Contract).filter(
             or_(
                 Contract.trading_symbol.ilike(f"%{query_str}%"),
                 Contract.symbol.ilike(f"%{query_str}%")
-            )
+            ),
+            Contract.instrument_type.like("FUT%")
+        ).limit(10).all()
+
+        # 3. Query Options (OPT) matching the query
+        options = self.db.query(Contract).filter(
+            or_(
+                Contract.trading_symbol.ilike(f"%{query_str}%"),
+                Contract.symbol.ilike(f"%{query_str}%")
+            ),
+            Contract.instrument_type.like("OPT%")
         ).limit(limit).all()
+
+        # 4. Create synthesized Contract instances for Equity
+        synthesized_eq = []
+        for sym in matching_symbols:
+            eq_contract = Contract(
+                id=-999 - len(synthesized_eq), # Dummy ID
+                exchange="NSE",
+                segment="CM",
+                symbol=sym,
+                trading_symbol=f"{sym}",
+                underlying=sym,
+                expiry=None,
+                strike=None,
+                option_type="EQ",
+                instrument_type="EQ",
+                lot_size=1,
+                token=f"EQ_{sym}",
+                weekly_monthly_flag="MONTHLY"
+            )
+            synthesized_eq.append(eq_contract)
+
+        # Merge results: EQ first, then Futures, then Options
+        all_results = synthesized_eq + futures + options
+        return all_results[:limit]
 
     def get_active_contracts(self) -> List[Contract]:
         return self.db.query(Contract).filter(Contract.contract_status == "ACTIVE").all()

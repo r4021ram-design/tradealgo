@@ -82,8 +82,9 @@ def get_algo_app_or_404() -> AlgoApp:
     if not hasattr(app, 'broker') or not app.broker:
         raise HTTPException(status_code=503, detail="Broker client not initialized")
 
-    # Proactive session check for every API request
-    if not app.broker.is_session_alive():
+    # Proactive session check for every API request - bypassed in paper trade mode
+    paper_trade = app.config.get("risk", {}).get("paper_trade", False)
+    if not paper_trade and not app.broker.is_session_alive():
         LOGGER.warning("api_request_detected_dead_session_attempting_refresh")
         try:
             # This triggers the thread-safe double-checked locking refresh
@@ -217,6 +218,9 @@ class OptionChainOrderPayload(BaseModel):
     quantity: int | None = None
     opt_type: str = "CE"
     transaction_type: str = "B"
+    price: str = "0"
+    trigger_price: str = "0"
+    expiry: str | None = None
 
 
 class StrategyLegPayload(BaseModel):
@@ -533,26 +537,86 @@ async def get_free_option_chain(symbol: str, expiry: Optional[str] = None):
             except Exception:
                 expiry_formatted = active_expiry.replace("-", "").upper()
                 
+            from kotak_algo.core.greeks_engine import calculate_greeks
+            from datetime import datetime
+            expiry_dt = None
+            try:
+                expiry_dt = datetime.strptime(active_expiry, "%d-%b-%Y")
+            except Exception:
+                try:
+                    expiry_dt = datetime.strptime(active_expiry, "%Y-%m-%d")
+                except Exception:
+                    LOGGER.error("failed_to_parse_expiry_for_greeks", active_expiry=active_expiry)
+
+            # Set expiry time to 15:30 IST (market close) instead of midnight
+            if expiry_dt:
+                expiry_dt = expiry_dt.replace(hour=15, minute=30, second=0)
+                LOGGER.info("greeks_calculation_params", expiry_dt=str(expiry_dt), spot_price=spot_price)
+
             ce_by_strike = {x["strike"]: x for x in chain_data["ce_chain"]}
             pe_by_strike = {x["strike"]: x for x in chain_data["pe_chain"]}
             all_strikes = sorted(set(ce_by_strike.keys()).union(pe_by_strike.keys()))
             
             chain = []
+            greeks_calculated = 0
+            greeks_failed = 0
             for strike in all_strikes:
                 ce_item = ce_by_strike.get(strike, {})
                 pe_item = pe_by_strike.get(strike, {})
                 
+                # Dynamic calculations for CE
+                # Use mid-price for IV (matches NSE methodology), fall back to LTP
+                ce_ltp = float(ce_item.get("ltp", 0.0) or 0.0)
+                ce_bid = float(ce_item.get("bid", 0.0) or 0.0)
+                ce_ask = float(ce_item.get("ask", 0.0) or 0.0)
+                ce_mid = (ce_bid + ce_ask) / 2.0 if ce_bid > 0 and ce_ask > 0 else ce_ltp
+                
+                ce_greeks = {"iv": 0.0, "delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0}
+                if ce_mid > 0 and expiry_dt and spot_price > 0:
+                    try:
+                        ce_greeks = calculate_greeks(spot_price, strike, ce_mid, expiry_dt, "CE")
+                        if ce_greeks["iv"] > 0:
+                            greeks_calculated += 1
+                        else:
+                            greeks_failed += 1
+                    except Exception as e:
+                        greeks_failed += 1
+                        LOGGER.warning("ce_greeks_calc_error", strike=strike, ltp=ce_mid, error=str(e))
+                
+                # Dynamic calculations for PE
+                pe_ltp = float(pe_item.get("ltp", 0.0) or 0.0)
+                pe_bid = float(pe_item.get("bid", 0.0) or 0.0)
+                pe_ask = float(pe_item.get("ask", 0.0) or 0.0)
+                pe_mid = (pe_bid + pe_ask) / 2.0 if pe_bid > 0 and pe_ask > 0 else pe_ltp
+                
+                pe_greeks = {"iv": 0.0, "delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0}
+                if pe_mid > 0 and expiry_dt and spot_price > 0:
+                    try:
+                        pe_greeks = calculate_greeks(spot_price, strike, pe_mid, expiry_dt, "PE")
+                        if pe_greeks["iv"] > 0:
+                            greeks_calculated += 1
+                        else:
+                            greeks_failed += 1
+                    except Exception as e:
+                        greeks_failed += 1
+                        LOGGER.warning("pe_greeks_calc_error", strike=strike, ltp=pe_mid, error=str(e))
+
                 chain.append({
                     "strike": strike,
                     "ce_symbol": ce_item.get("trading_symbol", f"{symbol.upper()}{expiry_formatted}{strike}CE"),
                     "pe_symbol": pe_item.get("trading_symbol", f"{symbol.upper()}{expiry_formatted}{strike}PE"),
+                    "ce_token": ce_item.get("token", ""),
+                    "pe_token": pe_item.get("token", ""),
+                    "lot_size": ce_item.get("lot_size", 0) or pe_item.get("lot_size", 0),
                     "ce": {
-                        "ltp": ce_item.get("ltp", 0),
+                        "ltp": ce_ltp,
                         "oi": ce_item.get("open_interest", 0),
                         "oiChange": ce_item.get("change_oi", 0),
-                        "iv": ce_item.get("iv", 0),
-                        "delta": 0,
-                        "theta": 0,
+                        "iv": ce_greeks["iv"],
+                        "delta": ce_greeks["delta"],
+                        "gamma": ce_greeks["gamma"],
+                        "theta": ce_greeks["theta"],
+                        "vega": ce_greeks["vega"],
                         "bidPrice": ce_item.get("bid", 0),
                         "bidQty": ce_item.get("bid_qty", 0),
                         "askPrice": ce_item.get("ask", 0),
@@ -560,12 +624,14 @@ async def get_free_option_chain(symbol: str, expiry: Optional[str] = None):
                         "volume": ce_item.get("volume", 0),
                     },
                     "pe": {
-                        "ltp": pe_item.get("ltp", 0),
+                        "ltp": pe_ltp,
                         "oi": pe_item.get("open_interest", 0),
                         "oiChange": pe_item.get("change_oi", 0),
-                        "iv": pe_item.get("iv", 0),
-                        "delta": 0,
-                        "theta": 0,
+                        "iv": pe_greeks["iv"],
+                        "delta": pe_greeks["delta"],
+                        "gamma": pe_greeks["gamma"],
+                        "theta": pe_greeks["theta"],
+                        "vega": pe_greeks["vega"],
                         "bidPrice": pe_item.get("bid", 0),
                         "bidQty": pe_item.get("bid_qty", 0),
                         "askPrice": pe_item.get("ask", 0),
@@ -573,12 +639,40 @@ async def get_free_option_chain(symbol: str, expiry: Optional[str] = None):
                         "volume": pe_item.get("volume", 0),
                     }
                 })
+            
+            LOGGER.info("greeks_calculation_summary", calculated=greeks_calculated, failed=greeks_failed, total_strikes=len(all_strikes))
                 
+            # Fetch lot size for this underlying from DB
+            chain_lot_size = 0
+            try:
+                conn2 = sqlite3.connect(str(db_path))
+                cur2 = conn2.cursor()
+                cur2.execute(
+                    "SELECT lot_size FROM contracts WHERE symbol = ? AND instrument_type IN ('OPTIDX', 'OPTSTK') AND lot_size > 0 LIMIT 1",
+                    (symbol.upper(),)
+                )
+                ls_row = cur2.fetchone()
+                conn2.close()
+                if ls_row:
+                    chain_lot_size = ls_row[0]
+            except Exception:
+                pass
+
+            # Backfill lot_size into chain rows if DB had it but option_chain.py didn't
+            if chain_lot_size > 0:
+                for item in chain:
+                    if not item.get("lot_size"):
+                        item["lot_size"] = chain_lot_size
+
+            exchange_seg = "bse_fo" if symbol.upper() in ["SENSEX", "BANKEX"] else "nse_fo"
+
             return {
                 "symbol": symbol.upper(),
                 "spotPrice": spot_price,
                 "expiryDates": expiries,
                 "optionChain": chain,
+                "lotSize": chain_lot_size,
+                "exchangeSegment": exchange_seg,
                 "source": "kotak"
             }
         except Exception as e:
@@ -668,6 +762,9 @@ async def get_free_option_chain(symbol: str, expiry: Optional[str] = None):
                 "strike": strike,
                 "ce_symbol": ce_symbol,
                 "pe_symbol": pe_symbol,
+                "ce_token": "",
+                "pe_token": "",
+                "lot_size": 0,
                 "ce": {
                     "ltp": row["CE_LTP"],
                     "oi": row["CE_OI"],
@@ -692,11 +789,14 @@ async def get_free_option_chain(symbol: str, expiry: Optional[str] = None):
                 }
             })
             
+        exchange_seg = "bse_fo" if symbol.upper() in ["SENSEX", "BANKEX"] else "nse_fo"
         return {
             "symbol": symbol.upper(),
             "spotPrice": spot_price,
             "expiryDates": expiries,
             "optionChain": chain,
+            "lotSize": 0,
+            "exchangeSegment": exchange_seg,
             "source": "live"
         }
     except Exception as e:
@@ -750,7 +850,12 @@ async def place_option_chain_order(
 ):
     try:
         lot_size = app.config.get("strategies", {}).get("straddle", {}).get("lot_size", 1)
-        lots = payload.quantity or 1
+        
+        # Auto-derive exchange_segment from underlying — never trust frontend hardcoded value
+        exchange_segment = payload.exchange_segment
+        sym_upper = payload.trading_symbol.strip().upper()
+        if sym_upper.startswith("SENSEX") or sym_upper.startswith("BANKEX"):
+            exchange_segment = "bse_fo"
         
         # Hardened: Resolve the clean contract trading symbol and token from SQLite contracts database
         trading_sym = payload.trading_symbol
@@ -782,11 +887,35 @@ async def place_option_chain_order(
                     sym_part = match.group("symbol").upper()
                     strike_part = float(match.group("strike"))
                     type_part = match.group("type").upper()
-                    contract = db.query(Contract).filter(
+                    expiry_part = match.group("expiry")
+                    
+                    # Build query with expiry filter to avoid matching the wrong contract
+                    query = db.query(Contract).filter(
                         Contract.symbol == sym_part,
                         Contract.strike == strike_part,
                         Contract.option_type == type_part
-                    ).first()
+                    )
+                    
+                    # Try to parse and filter by expiry from payload or regex
+                    expiry_filter = payload.expiry
+                    if not expiry_filter and expiry_part:
+                        expiry_filter = expiry_part
+                    
+                    if expiry_filter:
+                        # Try multiple date formats
+                        from datetime import datetime as _dt
+                        expiry_date = None
+                        for fmt in ("%d-%b-%Y", "%Y-%m-%d", "%d%b%y", "%d%b%Y"):
+                            try:
+                                expiry_date = _dt.strptime(expiry_filter, fmt).date()
+                                break
+                            except ValueError:
+                                continue
+                        if expiry_date:
+                            query = query.filter(Contract.expiry == expiry_date)
+                    
+                    # Order by nearest expiry to prefer the correct one
+                    contract = query.order_by(Contract.expiry.asc()).first()
         finally:
             db.close()
                 
@@ -802,6 +931,9 @@ async def place_option_chain_order(
             # Set the exact actual lot size from the database if available
             if contract.lot_size:
                 lot_size = contract.lot_size
+            # Also derive correct exchange segment from the resolved contract
+            if contract.symbol and contract.symbol.upper() in ("SENSEX", "BANKEX"):
+                exchange_segment = "bse_fo"
 
         # Also, double check: if the position_tracker doesn't have market data for the resolved symbol,
         # try to fetch a quote right now to populate it and avoid mid_price <= 0 crash!
@@ -809,7 +941,7 @@ async def place_option_chain_order(
             try:
                 LOGGER.info("fetching_on_demand_quote_for_order", symbol=trading_sym, token=token)
                 q_response = app.broker.quotes(
-                    instrument_tokens=[{"instrument_token": token, "exchange_segment": payload.exchange_segment}]
+                    instrument_tokens=[{"instrument_token": token, "exchange_segment": exchange_segment}]
                 )
                 from kotak_algo.core.option_chain import OptionChainService
                 parsed_quotes = OptionChainService(app.broker, app.logger)._parse_quotes(q_response)
@@ -828,23 +960,29 @@ async def place_option_chain_order(
         raw_qty = payload.quantity or lot_size
         lots = max(1, raw_qty // lot_size) if lot_size > 0 else 1
 
-        leg = {
-            "trading_symbol": trading_sym,
-            "instrument_token": token,
-            "exchange_segment": payload.exchange_segment,
-            "product": payload.product,
-            "lot_size": lot_size,
-            "lots": lots,
-            "quantity": raw_qty,
-            "tag": f"option-chain-{payload.opt_type}",
-        }
+        # Determine effective order type: respect user's choice from the modal
+        user_order_type = payload.order_type.upper() if payload.order_type else "MKT"
+        user_price = payload.price if payload.price and payload.price != "0" else "0"
+        user_trigger = payload.trigger_price if payload.trigger_price and payload.trigger_price != "0" else "0"
+
+        # Always route manual option chain orders directly to OrderManager.place_order()
+        # This respects user's exact price/order type inputs and prevents failures on lack of mid_price feeds.
+        def _place_direct_order():
+            return app.order_manager.place_order(
+                trading_symbol=trading_sym,
+                side=payload.transaction_type,
+                quantity=raw_qty,
+                order_type=user_order_type,
+                product=payload.product,
+                price=user_price,
+                trigger_price=user_trigger,
+                tag=f"option-chain-{payload.opt_type}",
+                exchange_segment=exchange_segment,
+            )
         
-        def _place_order():
-            return app.order_manager.place_entry_order(leg, payload.transaction_type)
-        
-        result = await asyncio.to_thread(_place_order)
-        LOGGER.info("option_chain_order_placed", trading_symbol=payload.trading_symbol, result=result)
-        return result
+        order_id = await asyncio.to_thread(_place_direct_order)
+        LOGGER.info("option_chain_order_placed", trading_symbol=trading_sym, order_type=user_order_type, order_id=order_id)
+        return {"order_id": order_id, "status": "submitted", "order_type": user_order_type}
     
     except Exception as e:
         LOGGER.error("option_chain_order_error", error=str(e))
@@ -917,6 +1055,56 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # --- Instrument Master Routes ---
 
+@app.get("/api/contracts/details")
+async def get_contract_details(trading_symbol: str, db = Depends(get_db)):
+    """
+    Get detailed contract information for a trading symbol (or clean symbol).
+    Prevents the frontend from guessing lot sizes or exchange segments.
+    """
+    from kotak_algo.instruments.models.contract_model import Contract
+    clean_sym = trading_symbol.replace(" ", "").upper()
+    contract = db.query(Contract).filter(
+        (Contract.trading_symbol == clean_sym) | 
+        (Contract.trading_symbol == trading_symbol.upper())
+    ).first()
+
+    if not contract:
+        # Check if it matches a priority index like SENSEX or NIFTY directly
+        sym_upper = trading_symbol.upper().strip()
+        if sym_upper in ("NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "SENSEX", "BANKEX"):
+            lot_sizes = {"NIFTY": 65, "BANKNIFTY": 30, "FINNIFTY": 60, "MIDCPNIFTY": 120, "SENSEX": 20, "BANKEX": 30}
+            exg = "bse_cm" if sym_upper in ("SENSEX", "BANKEX") else "nse_cm"
+            return {
+                "success": True,
+                "trading_symbol": sym_upper,
+                "symbol": sym_upper,
+                "token": "26000" if sym_upper == "NIFTY" else "26009" if sym_upper == "BANKNIFTY" else "",
+                "lot_size": lot_sizes.get(sym_upper, 1),
+                "exchange_segment": exg,
+                "instrument_type": "IDX",
+                "expiry": None
+            }
+        raise HTTPException(status_code=404, detail=f"Contract not found for symbol: {trading_symbol}")
+
+    is_fo = contract.segment.upper() == "FO" or (contract.instrument_type and any(x in contract.instrument_type.upper() for x in ("OPT", "FUT")))
+    if contract.exchange.upper() == "BSE":
+        exg_seg = "bse_fo" if is_fo else "bse_cm"
+    else:
+        exg_seg = "nse_fo" if is_fo else "nse_cm"
+
+    return {
+        "success": True,
+        "trading_symbol": contract.trading_symbol,
+        "symbol": contract.symbol,
+        "token": contract.token,
+        "lot_size": contract.lot_size,
+        "exchange_segment": exg_seg,
+        "instrument_type": contract.instrument_type,
+        "expiry": str(contract.expiry) if contract.expiry else None,
+        "strike": contract.strike,
+        "option_type": contract.option_type
+    }
+
 @app.get("/api/contracts")
 async def get_contracts(
     symbol: Optional[str] = None, 
@@ -976,7 +1164,7 @@ class VerifyPinPayload(BaseModel):
 
 @app.post("/api/verify-pin")
 async def verify_pin(payload: VerifyPinPayload, app: AlgoApp = Depends(get_algo_app_or_404)):
-    expected_pin = app.config.risk.trading_pin
+    expected_pin = app.config.get("risk", {}).get("trading_pin")
     if payload.pin == expected_pin:
         return {"success": True, "message": "PIN verified successfully"}
     raise HTTPException(status_code=401, detail="Invalid Trading PIN")

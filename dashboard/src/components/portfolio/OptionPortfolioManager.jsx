@@ -3,151 +3,17 @@ import { usePortfolioStore } from '../../store/usePortfolioStore';
 import { useTerminalStore } from '../../store/useTerminalStore';
 import { calculateBlackScholes } from '../../utils/blackScholes';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
+import { parseOptionSymbol } from '../../utils/symbolParser';
 
-/**
- * Robust parser for Kotak Neo / NSE option trading symbols.
- * Mapped types: CE -> Call, PE -> Put.
- * Support weekly and monthly contracts.
- */
-const parseOptionSymbol = (symbol) => {
-  if (!symbol) return null;
-  const clean = symbol.replace(/\s+/g, '').toUpperCase();
-  
-  // Match: [SYMBOL][EXPIRY_AND_STRIKE][CE|PE]
-  const match = clean.match(/^([A-Z]+)(\d+.*)(CE|PE)$/);
-  if (!match) return null;
-  
-  const underlying = match[1];
-  const middle = match[2];
-  const type = match[3] === 'CE' ? 'Call' : 'Put';
-  
-  const HOLIDAYS_2026 = new Set([
-    "2026-01-15", "2026-01-26", "2026-03-03", "2026-03-26", "2026-03-31",
-    "2026-04-03", "2026-04-14", "2026-05-01", "2026-05-28", "2026-06-26",
-    "2026-09-14", "2026-10-02", "2026-10-20", "2026-11-10", "2026-11-24",
-    "2026-12-25"
-  ]);
-
-  const shiftExpiryDate = (dt) => {
-    while (true) {
-      const y = dt.getFullYear();
-      const m = String(dt.getMonth() + 1).padStart(2, '0');
-      const d = String(dt.getDate()).padStart(2, '0');
-      const dtStr = `${y}-${m}-${d}`;
-      const dayOfWeek = dt.getDay(); // 0 = Sunday, 6 = Saturday
-      
-      if (dayOfWeek === 0 || dayOfWeek === 6 || HOLIDAYS_2026.has(dtStr)) {
-        dt.setDate(dt.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-    return dt;
-  };
-
-  // Find the 3-letter month (JAN, FEB, etc.)
+const formatExpiryPremium = (dateStr) => {
+  if (!dateStr || dateStr === 'N/A') return '-';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
   const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-  let monthIdx = -1;
-  let monthName = '';
-  for (let m of months) {
-    const idx = middle.indexOf(m);
-    if (idx !== -1) {
-      monthIdx = idx;
-      monthName = m;
-      break;
-    }
-  }
-  
-  if (monthIdx === -1) {
-    // Try matching the weekly numeric format: NIFTY YY M DD STRIKE CE/PE
-    // e.g. 2652822000 -> 26 (Year), 5 (Month), 28 (Day), 22000 (Strike)
-    const weeklyMatch = middle.match(/^(\d{2})([0-9A-Z])(\d{2})([\d\.]+)$/);
-    if (weeklyMatch) {
-      const year = parseInt('20' + weeklyMatch[1]);
-      const monthChar = weeklyMatch[2];
-      let monthVal = 0;
-      if (monthChar === 'O') monthVal = 9;
-      else if (monthChar === 'N') monthVal = 10;
-      else if (monthChar === 'D') monthVal = 11;
-      else monthVal = parseInt(monthChar) - 1;
-      
-      const day = parseInt(weeklyMatch[3]);
-      const strike = parseFloat(weeklyMatch[4]);
-      
-      const now = new Date();
-      const d = new Date(year, monthVal, day, 15, 30, 0);
-      const shiftedD = shiftExpiryDate(d);
-      const expDate = shiftedD.toISOString().split('T')[0];
-      const dte = Math.max(0, Math.ceil((shiftedD - now) / (1000 * 60 * 60 * 24)));
-      
-      return { underlying, expiryStr: middle.substring(0, 5), expDate, dte, strike, type };
-    }
-    return null;
-  }
-  
-  // Parse month-based symbol
-  const yearStr = middle.substring(0, monthIdx);
-  const afterMonth = middle.substring(monthIdx + 3);
-  
-  // Count digits after the month
-  const digitsOnly = afterMonth.replace(/\D/g, '');
-  
-  let day = null;
-  let strikeStr = afterMonth;
-  
-  if (digitsOnly.length >= 7) {
-    // First 2 digits are the day
-    const dayStr = digitsOnly.substring(0, 2);
-    day = parseInt(dayStr);
-    strikeStr = afterMonth.substring(2);
-  }
-  
-  const strike = parseFloat(strikeStr);
-  const year = parseInt('20' + yearStr);
-  const monthVal = months.indexOf(monthName);
-  
-  const now = new Date();
-  let expDate = '';
-  let dte = 7;
-  
-  // Special exception for May 2026 SENSEX/BANKEX contracts expiring on May 27 due to holiday on May 28
-  if (year === 2026 && monthVal === 4) { // May is 4 (0-indexed)
-    if (underlying === 'SENSEX' || underlying === 'BANKEX') {
-      if (day === null || day === 28 || day === 29) {
-        day = 27;
-      }
-    }
-  }
-
-  if (day !== null) {
-    const d = new Date(year, monthVal, day, 15, 30, 0);
-    const shiftedD = shiftExpiryDate(d);
-    expDate = shiftedD.toISOString().split('T')[0];
-    dte = Math.max(0, Math.ceil((shiftedD - now) / (1000 * 60 * 60 * 24)));
-  } else {
-    // Monthly option: last Tuesday of the month (last Thursday for SENSEX/BANKEX)
-    const lastDay = new Date(year, monthVal + 1, 0).getDate();
-    const targetDay = (underlying === 'SENSEX' || underlying === 'BANKEX') ? 4 : 2; // 4 is Thursday, 2 is Tuesday
-    for (let d = lastDay; d > lastDay - 7; d--) {
-      const checkDate = new Date(year, monthVal, d);
-      if (checkDate.getDay() === targetDay) {
-        day = d;
-        break;
-      }
-    }
-    
-    // Shift monthly option if falls on Buddha Purnima holiday
-    if (year === 2026 && monthVal === 4 && (underlying === 'SENSEX' || underlying === 'BANKEX') && day === 28) {
-      day = 27;
-    }
-    
-    const d = new Date(year, monthVal, day, 15, 30, 0);
-    const shiftedD = shiftExpiryDate(d);
-    expDate = shiftedD.toISOString().split('T')[0];
-    dte = Math.max(0, Math.ceil((shiftedD - now) / (1000 * 60 * 60 * 24)));
-  }
-  
-  return { underlying, expiryStr: middle.substring(0, monthIdx + 3), expDate, dte, strike, type };
+  const year = parts[0];
+  const monthIdx = parseInt(parts[1]) - 1;
+  const day = parts[2];
+  return `${day} ${months[monthIdx]} ${year}`;
 };
 
 export const OptionPortfolioManager = () => {
@@ -183,12 +49,14 @@ export const OptionPortfolioManager = () => {
 
       const size = pos.netQty;
       const entryPrice = size > 0 ? pos.avgBuyPrice : pos.avgSellPrice;
-
+      
       return {
+        ...parsed,
         id: `live-${pos.symbol}`,
-        isLive: true,
         symbol: pos.symbol,
+        underlying: parsed.underlying || 'NIFTY',
         isOpen: excludedLivePositions[pos.symbol] !== false,
+        isLive: true,
         size,
         strike: parsed.strike,
         type: parsed.type,
@@ -196,8 +64,8 @@ export const OptionPortfolioManager = () => {
         dte: pos.dte !== null && pos.dte !== undefined ? pos.dte : parsed.dte,
         entryPrice: entryPrice || pos.ltp || 0,
         exitPrice: 0,
-        iv: pos.iv !== null && pos.iv !== undefined ? pos.iv : 0.16, // live or fallback IV
-        ltp: pos.ltp,
+        iv: pos.iv !== null && pos.iv !== undefined ? pos.iv : 0.16,
+        ltp: pos.ltp || 0,
         delta: pos.delta || 0,
         theta: pos.theta || 0
       };
@@ -441,17 +309,17 @@ export const OptionPortfolioManager = () => {
               <tr className="bg-[#f2f2f2] font-bold">
                 <th className="w-8">Leg</th>
                 <th className="w-12">Enable</th>
-                <th className="w-48">Trading Symbol</th>
+                <th className="w-24">Underlying</th>
+                <th className="w-32">Expiry</th>
+                <th className="w-24">Strike Price</th>
+                <th className="w-20">Option Type</th>
                 <th className="w-20">Net Qty</th>
-                <th className="w-20">Strike</th>
-                <th className="w-16">Type</th>
-                <th className="w-20">Avg Entry Price</th>
+                <th className="w-24">Avg Entry Price</th>
                 <th className="w-20">LTP</th>
-                <th className="w-20">P/L</th>
+                <th className="w-24">P/L</th>
                 <th className="w-20">Delta</th>
                 <th className="w-20">Theta</th>
                 <th className="w-20">IV %</th>
-                <th className="w-24">Expiry</th>
                 <th>DTE</th>
               </tr>
             </thead>
@@ -465,23 +333,25 @@ export const OptionPortfolioManager = () => {
               ) : (
                 parsedLiveLegs.map((leg, i) => {
                   const pnl = (leg.ltp - leg.entryPrice) * leg.size;
+                  const optType = leg.type === 'Call' || leg.type === 'CE' ? 'CE' : leg.type === 'Put' || leg.type === 'PE' ? 'PE' : leg.type;
+                  
                   return (
                     <tr key={leg.id} className="bg-white">
                       <td className="bg-[#e6e6e6] text-center font-bold">{i + 1}</td>
                       <td className="bg-[#c6efce] text-center">
                         <input type="checkbox" checked={leg.isOpen} onChange={e => handleToggleLivePosition(leg.symbol, e.target.checked)} />
                       </td>
-                      <td className="font-bold text-left bg-gray-50">{leg.symbol}</td>
+                      <td className="font-bold text-center bg-gray-50 text-[#002060]">{leg.underlying}</td>
+                      <td className="text-center font-semibold text-slate-800">{formatExpiryPremium(leg.expDate)}</td>
+                      <td className="text-right font-mono">{leg.strike ? Number(leg.strike).toFixed(2) : '-'}</td>
+                      <td className={`text-center font-bold ${optType === 'CE' ? 'text-[#008800]' : optType === 'PE' ? 'text-[#cc0000]' : ''}`}>{optType}</td>
                       <td className={`font-bold text-right ${leg.size > 0 ? 'text-finance-green' : 'text-finance-red'}`}>{leg.size}</td>
-                      <td className="text-right">{leg.strike}</td>
-                      <td className="text-center font-bold">{leg.type}</td>
                       <td className="text-right">₹ {leg.entryPrice.toFixed(2)}</td>
                       <td className="text-right font-bold">₹ {leg.ltp.toFixed(2)}</td>
                       <td className={`text-right font-bold ${pnl >= 0 ? 'text-[#006100]' : 'text-[#ff0000]'}`}>₹ {pnl.toFixed(2)}</td>
                       <td className={`text-right ${leg.delta * leg.size >= 0 ? 'text-[#006100]' : 'text-[#ff0000]'}`}>{((leg.delta || 0) * leg.size).toFixed(2)}</td>
                       <td className={`text-right ${leg.theta * leg.size >= 0 ? 'text-[#006100]' : 'text-[#ff0000]'}`}>{((leg.theta || 0) * leg.size).toFixed(2)}</td>
                       <td className="text-center">{(leg.iv * 100).toFixed(1)}%</td>
-                      <td className="text-center">{leg.expDate}</td>
                       <td className="text-center font-bold bg-[#c6efce]">{leg.dte}</td>
                     </tr>
                   );

@@ -63,7 +63,7 @@ class AlgoApp:
             max_reprice_attempts=self.config["risk"].get("max_reprice_attempts", 3),
         )
         self.scheduler = TimeScheduler(logger=self.logger)
-        self.strike_selector = StrikeSelector(self.broker, logger=self.logger)
+        self.strike_selector = StrikeSelector(self.broker, position_tracker=self.position_tracker, logger=self.logger)
         self.nse_reference = NSEReferenceUpdater(
             broker=self.broker,
             config=self.config.get("nse_reference", {}),
