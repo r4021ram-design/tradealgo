@@ -115,8 +115,6 @@ export const OrderModal = () => {
     }
   };
 
-  if (!isOpen) return null;
-
   const isBuy = type === 'BUY';
   const headerBg = isBuy ? 'bg-[#4a90e2]' : 'bg-[#e24a4a]';
   const btnBg = isBuy ? 'bg-[#4a90e2] text-white' : 'bg-[#e24a4a] text-white';
@@ -198,18 +196,21 @@ export const OrderModal = () => {
     const resolvedToken = (resolvedMetadata && resolvedMetadata.token) ? resolvedMetadata.token : (token || symbol);
     const resolvedExpiry = (resolvedMetadata && resolvedMetadata.expiry) ? resolvedMetadata.expiry : (expiry || null);
 
+    const isDerivatives = resolvedSegment === 'nse_fo' || resolvedSegment === 'bse_fo';
+    const apiProduct = product === 'MIS' ? 'MIS' : (isDerivatives ? 'NRML' : 'CNC');
+
     const apiPayload = {
       trading_symbol: symbol,
       token: resolvedToken,
       side: isBuy ? 'B' : 'S',
       exchange_segment: resolvedSegment,
-      product: product === 'CNC' ? 'CNC' : 'NRML',
+      product: apiProduct,
       order_type: orderType === 'Limit' ? 'L' : orderType === 'Market' ? 'MKT' : orderType,
       quantity: qty,
       opt_type: (symbol && symbol.endsWith('PE')) ? 'PE' : 'CE',
       transaction_type: isBuy ? 'B' : 'S',
       price: String(orderPrice),
-      trigger_price: String(triggerPrice),
+      trigger_price: (orderType === 'SL' || orderType === 'SL-M' || activeTab === 'Cover') ? String(triggerPrice) : '0',
       expiry: resolvedExpiry
     };
 
@@ -221,7 +222,15 @@ export const OrderModal = () => {
         body: JSON.stringify(apiPayload)
       });
       if (!response.ok) {
-        throw new Error(await response.text());
+        const text = await response.text();
+        let errMsg = text;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.detail) {
+            errMsg = parsed.detail;
+          }
+        } catch (e) {}
+        throw new Error(errMsg);
       }
       const result = await response.json();
       console.log('Order Placed successfully:', result);
@@ -233,6 +242,8 @@ export const OrderModal = () => {
   };
 
   const tabs = ['Quick', 'Regular', 'AMO', 'MTF', 'Iceberg', 'Cover'];
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" style={{ fontFamily: 'Calibri, Arial, sans-serif' }}>
@@ -566,14 +577,14 @@ export const OrderModal = () => {
                      <td className="text-[#4a90e2] text-right">{row.bidOrders}</td>
                      <td className="text-[#4a90e2] text-right font-bold relative">
                        {/* Mock Depth Bar background */}
-                       <div className="absolute inset-y-0 right-0 bg-[#4a90e2]/10" style={{ width: `${Math.random()*60 + 20}%`}}></div>
+                       <div className="absolute inset-y-0 right-0 bg-[#4a90e2]/10" style={{ width: `${((i * 17 + 23) % 60) + 20}%`}}></div>
                        <span className="relative z-10 pr-1">{row.bidQty.toLocaleString('en-IN')}</span>
                      </td>
                      <td className="text-[#e24a4a] py-1 pl-2">{row.offer.toFixed(2)}</td>
                      <td className="text-[#e24a4a] text-right">{row.offerOrders}</td>
                      <td className="text-[#e24a4a] text-right font-bold relative">
                        {/* Mock Depth Bar background */}
-                       <div className="absolute inset-y-0 right-0 bg-[#e24a4a]/10" style={{ width: `${Math.random()*60 + 20}%`}}></div>
+                       <div className="absolute inset-y-0 right-0 bg-[#e24a4a]/10" style={{ width: `${((i * 13 + 37) % 60) + 20}%`}}></div>
                        <span className="relative z-10 pr-1">{row.offerQty.toLocaleString('en-IN')}</span>
                      </td>
                    </tr>

@@ -963,7 +963,10 @@ async def place_option_chain_order(
         # Determine effective order type: respect user's choice from the modal
         user_order_type = payload.order_type.upper() if payload.order_type else "MKT"
         user_price = payload.price if payload.price and payload.price != "0" else "0"
-        user_trigger = payload.trigger_price if payload.trigger_price and payload.trigger_price != "0" else "0"
+        
+        # Enforce trigger_price to "0" for non-trigger order types (L/MKT) unless it's a cover order
+        is_trigger_order = user_order_type in ("SL", "SL-M") or payload.product == "CO"
+        user_trigger = payload.trigger_price if (is_trigger_order and payload.trigger_price and payload.trigger_price != "0") else "0"
 
         # Always route manual option chain orders directly to OrderManager.place_order()
         # This respects user's exact price/order type inputs and prevents failures on lack of mid_price feeds.
@@ -1192,6 +1195,52 @@ async def modify_order(order_id: str, payload: ModifyOrderPayload, app: AlgoApp 
         return {"success": True, "message": "Order modified successfully", "data": response}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/config/paper-trade")
+async def get_paper_trade_status(app: AlgoApp = Depends(get_algo_app_or_404)):
+    return {
+        "paper_trade": app.config.get("risk", {}).get("paper_trade", False)
+    }
+
+@app.post("/api/config/paper-trade")
+async def set_paper_trade_status(payload: dict, app: AlgoApp = Depends(get_algo_app_or_404)):
+    if "paper_trade" not in payload:
+        raise HTTPException(status_code=400, detail="Missing paper_trade in payload")
+    
+    paper_trade = bool(payload["paper_trade"])
+    
+    # 1. Update in-memory configurations
+    app.config["risk"]["paper_trade"] = paper_trade
+    app.order_manager.paper_trade = paper_trade
+    app.position_tracker.paper_trade = paper_trade
+    if hasattr(app.order_manager, "_validator") and app.order_manager._validator:
+        app.order_manager._validator.paper_trade = paper_trade
+        
+    # 2. Update config.yaml file to persist the change
+    import yaml
+    from pathlib import Path
+    config_path = Path(__file__).parent / "config.yaml"
+    if config_path.exists():
+        try:
+            with open(config_path, "r") as f:
+                data = yaml.safe_load(f) or {}
+            
+            if "risk" not in data:
+                data["risk"] = {}
+            data["risk"]["paper_trade"] = paper_trade
+            
+            with open(config_path, "w") as f:
+                yaml.safe_dump(data, f, default_flow_style=False)
+            
+            LOGGER.info("config_yaml_paper_trade_updated", paper_trade=paper_trade)
+        except Exception as e:
+            LOGGER.error("failed_to_save_config_yaml_paper_trade", error=str(e))
+
+    return {
+        "success": True,
+        "paper_trade": paper_trade,
+        "message": f"Trading mode successfully switched to {'PAPER' if paper_trade else 'LIVE'}"
+    }
 
 if __name__ == "__main__":
     import uvicorn

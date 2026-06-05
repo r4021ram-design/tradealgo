@@ -244,6 +244,11 @@ function UnlockedApp() {
   const openOrderModal = useTerminalStore(state => state.openOrderModal);
   const closeOrderModal = useTerminalStore(state => state.closeOrderModal);
   const activeView = useTerminalStore(state => state.activeView);
+  const fetchPaperTradeStatus = useTerminalStore(state => state.fetchPaperTradeStatus);
+
+  useEffect(() => {
+    fetchPaperTradeStatus();
+  }, [fetchPaperTradeStatus]);
 
   // Global Keyboard Shortcuts
   useEffect(() => {

@@ -123,6 +123,7 @@ class PositionTracker:
         self.available_margin = 0.0
         self._running = False
         self._thread: threading.Thread | None = None
+        self.paper_trade = True
         self._listeners = []
         self._snapshot_dir = Path(__file__).resolve().parents[1] / "snapshots"
         self._snapshot_dir.mkdir(parents=True, exist_ok=True)
@@ -163,6 +164,7 @@ class PositionTracker:
             "product": leg["product"],
             "status": "OPEN",
             "realized_pnl": 0.0,
+            "paper_trade": self.paper_trade,
         }
 
     def set_strategy_net_premium(self, strategy_name: str, net_premium: float) -> None:
@@ -325,6 +327,8 @@ class PositionTracker:
                     entry["status"] = "CLOSED"
                     entry["exit_price"] = fill_price
                     
+        order_id = order.get("order_id", "")
+        entry["paper_trade"] = order_id.startswith("paper-") or self.paper_trade
         self.legs[symbol] = entry
         self.logger.info("fill_recorded", trading_symbol=symbol, transaction_type=tx_type, fill_price=fill_price, new_qty=entry.get("quantity"), status=entry.get("status"))
 
@@ -480,6 +484,7 @@ class PositionTracker:
             leg["quantity"] = qty
             leg["status"] = "OPEN" if qty > 0 else "CLOSED"
             leg["side"] = "SHORT" if net_qty < 0 else "LONG"
+            leg["paper_trade"] = False
             
             # Parse Entry Price (Kotak Neo specific fields or standard fallback)
             entry_price = 0.0

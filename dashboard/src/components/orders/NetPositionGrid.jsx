@@ -160,7 +160,7 @@ export const NetPositionGrid = () => {
   }, [positions]);
 
   return (
-    <div className="flex flex-col flex-1 bg-white">
+    <div className="flex flex-col flex-1 bg-white min-h-0 overflow-hidden">
       {/* Tabs */}
       <div className="flex bg-finance-panel border-b border-[#ccc]">
         {tabs.map(tab => (

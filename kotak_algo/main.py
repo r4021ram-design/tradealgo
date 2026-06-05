@@ -41,6 +41,7 @@ class AlgoApp:
             poll_interval=self.config["risk"].get("position_poll_interval_seconds", 5),
             logger=self.logger,
         )
+        self.position_tracker.paper_trade = self.config["risk"].get("paper_trade", True)
         self.websocket = WebSocketFeed(
             broker=self.broker,
             position_tracker=self.position_tracker,

@@ -65,6 +65,17 @@ export const useOrdersData = () => {
       const response = await fetch(getApiUrl(`/api/orders/${orderId}`), {
         method: 'DELETE',
       });
+      if (!response.ok) {
+        const text = await response.text();
+        let errMsg = text;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.detail) {
+            errMsg = parsed.detail;
+          }
+        } catch (e) {}
+        throw new Error(errMsg);
+      }
       const result = await response.json();
       if (!result.success) throw new Error(result.message || 'Failed to cancel order');
       return result;
@@ -83,6 +94,17 @@ export const useOrdersData = () => {
         },
         body: JSON.stringify({ price: parseFloat(price), quantity: parseInt(quantity, 10) }),
       });
+      if (!response.ok) {
+        const text = await response.text();
+        let errMsg = text;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.detail) {
+            errMsg = parsed.detail;
+          }
+        } catch (e) {}
+        throw new Error(errMsg);
+      }
       const result = await response.json();
       if (!result.success) throw new Error(result.message || 'Failed to modify order');
       return result;

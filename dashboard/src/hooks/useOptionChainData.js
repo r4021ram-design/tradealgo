@@ -155,7 +155,7 @@ export function useOptionChainData() {
 
     const intervalId = setInterval(() => {
       fetchData();
-    }, 30000);
+    }, 3000);
 
     return () => clearInterval(intervalId);
   }, [underlying, setOptionChain, setSpotPrice, selectedExpiry, setAvailableExpiries, setExpiry]);

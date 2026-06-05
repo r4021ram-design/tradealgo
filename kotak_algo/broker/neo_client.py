@@ -111,8 +111,12 @@ class NeoBrokerClient:
                     pass
 
             try:
+                # Normalize environment to uppercase "PROD" or "UAT" as required by Kotak Neo SDK
+                config_env = str(self.config.get("environment", "PROD")).strip().upper()
+                sdk_env = "UAT" if "UAT" in config_env else "PROD"
+                
                 self._client = NeoAPI(
-                    environment=self.config.get("environment", "prod"),
+                    environment=sdk_env,
                     access_token=None,
                     neo_fin_key=None,
                     consumer_key=self.config["consumer_key"],
@@ -281,9 +285,17 @@ class NeoBrokerClient:
     # ── Order Operations ─────────────────────────────────────────
 
     def place_order(self, **kwargs) -> Any:
+        # Convert numeric parameters to strings as strictly required by Kotak Neo SDK validation
+        for field in ("quantity", "price", "trigger_price", "disclosed_quantity", "market_protection"):
+            if field in kwargs and kwargs[field] is not None:
+                kwargs[field] = str(kwargs[field])
         return self._call("place_order", self.client.place_order, **kwargs)
 
     def modify_order(self, **kwargs) -> Any:
+        # Convert numeric parameters to strings as strictly required by Kotak Neo SDK validation
+        for field in ("quantity", "price", "trigger_price", "disclosed_quantity", "market_protection"):
+            if field in kwargs and kwargs[field] is not None:
+                kwargs[field] = str(kwargs[field])
         return self._call("modify_order", self.client.modify_order, **kwargs)
 
     def cancel_order(self, **kwargs) -> Any:

@@ -63,7 +63,8 @@ export function useLiveData() {
             status: leg.status || 'CLOSED',
             expiry,
             dte,
-            iv: iv ? iv / 100 : null
+            iv: iv ? iv / 100 : null,
+            paper_trade: leg.paper_trade || false
           };
         });
 

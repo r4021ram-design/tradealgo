@@ -189,13 +189,54 @@ export const useTerminalStore = create((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, legs })
       });
-      if (!response.ok) throw new Error(await response.text());
+      if (!response.ok) {
+        const text = await response.text();
+        let errMsg = text;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && parsed.detail) {
+            errMsg = parsed.detail;
+          }
+        } catch (e) {}
+        throw new Error(errMsg);
+      }
       const data = await response.json();
       console.log('Strategy Executed:', data);
       return data;
     } catch (error) {
       console.error('Execution Failed:', error);
       throw error;
+    }
+  },
+
+  // --- Paper Trading Mode ---
+  isPaperTrade: true,
+  fetchPaperTradeStatus: async () => {
+    try {
+      const response = await fetch(getApiUrl('/api/config/paper-trade'));
+      if (response.ok) {
+        const data = await response.json();
+        set({ isPaperTrade: data.paper_trade });
+      }
+    } catch (error) {
+      console.error('Failed to fetch paper trade status:', error);
+    }
+  },
+  togglePaperTrade: async (val) => {
+    try {
+      const response = await fetch(getApiUrl('/api/config/paper-trade'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paper_trade: val })
+      });
+      if (response.ok) {
+        set({ isPaperTrade: val });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to set paper trade status:', error);
+      return false;
     }
   }
 }));

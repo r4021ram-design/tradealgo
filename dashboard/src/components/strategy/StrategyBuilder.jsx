@@ -37,6 +37,18 @@ const STRATEGY_INFO = {
 
 import { useTerminalStore } from '../../store/useTerminalStore';
 
+const getLotSize = (symbol) => {
+  if (!symbol) return 1;
+  const upper = symbol.toUpperCase();
+  if (upper.startsWith('NIFTY')) return 65;
+  if (upper.startsWith('BANKNIFTY')) return 30;
+  if (upper.startsWith('FINNIFTY')) return 60;
+  if (upper.startsWith('MIDCPNIFTY')) return 120;
+  if (upper.startsWith('SENSEX')) return 20;
+  if (upper.startsWith('BANKEX')) return 30;
+  return 1;
+};
+
 export const StrategyBuilder = () => {
   const { legs, updateLeg, loadStrategyPreset, clearLegs } = usePortfolioStore();
   const optionChain = useTerminalStore(s => s.optionChain);
@@ -255,10 +267,12 @@ export const StrategyBuilder = () => {
                        legSymbol = `${selectedUnderlying} ${expiryFormatted} ${l.strike} ${optType}`;
                      }
 
+                     const lotSize = row ? (row.lot_size || getLotSize(selectedUnderlying)) : getLotSize(selectedUnderlying);
+
                      return {
                        symbol: legSymbol,
                        side: l.size > 0 ? 'BUY' : 'SELL',
-                       quantity: Math.abs(l.size),
+                       quantity: Math.abs(l.size) * lotSize,
                        strike: l.strike,
                        type: l.type
                      };

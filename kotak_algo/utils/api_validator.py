@@ -41,6 +41,13 @@ def validate_order_response(response: Any, *, context: str = "") -> str:
 
     # Check for explicit error fields
     if isinstance(response, dict):
+        if "Error" in response:
+            err_obj = response["Error"]
+            err_msg = str(err_obj)
+            raise OrderRejectedError(
+                f"Broker SDK Error: {err_msg}",
+                order_payload=response,
+            )
         stat = str(response.get("stat", "")).lower()
         error_msg = str(response.get("errMsg") or response.get("error") or response.get("message", "")).lower()
 
@@ -169,19 +176,28 @@ def validate_cancel_response(response: Any, *, context: str = "") -> str:
 
     # Check for explicit error fields
     if isinstance(response, dict):
-        stat = str(response.get("stat", "")).lower()
+        if "Error" in response:
+            err_obj = response["Error"]
+            err_msg = str(err_obj)
+            raise OrderRejectedError(
+                f"Broker SDK Error: {err_msg}",
+                order_payload=response,
+            )
+        stat = str(response.get("stat", "")).strip()
         error_msg = str(
             response.get("errMsg")
             or response.get("error")
             or response.get("message")
             or response.get("Error Message")
+            or response.get("stat")
             or ""
-        ).lower()
+        ).strip()
 
-        # If it failed/was rejected
-        if stat in ("not_ok", "error") or "rejected" in error_msg:
+        # If it failed/was rejected (any status other than OK/success is a failure)
+        if stat.lower() not in ("ok", "success") or "rejected" in error_msg.lower():
+            err_msg_lower = error_msg.lower()
             # Benign rejection cases (e.g. order is already filled or cancelled)
-            if any(s in error_msg for s in ("already filled", "already cancelled", "not pending", "completed")):
+            if any(s in err_msg_lower for s in ("already filled", "already cancelled", "not pending", "completed")):
                 LOGGER.info("order_cancel_benign_failure", error=error_msg)
                 # Return the order_id if present, or "benign_failure"
                 for key in ("nOrdNo", "order_id", "orderId"):

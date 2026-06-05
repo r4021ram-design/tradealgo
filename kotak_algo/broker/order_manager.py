@@ -295,6 +295,25 @@ class OrderManager:
                     raise ValueError(f"Order {order_id} not found in local cache")
                 payload = order["payload"]
                 
+            # Resolve instrument token from database to satisfy Kotak Neo SDK validation requirements
+            from pathlib import Path
+            import sqlite3
+            db_path = Path(__file__).resolve().parent.parent / "instruments" / "data" / "contracts.db"
+            instrument_token = None
+            try:
+                conn = sqlite3.connect(str(db_path))
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT token FROM contracts WHERE trading_symbol = ? OR symbol = ?",
+                    (payload["trading_symbol"], payload["trading_symbol"])
+                )
+                row = cursor.fetchone()
+                if row:
+                    instrument_token = row[0]
+                conn.close()
+            except Exception as e:
+                self.logger.warning("failed_to_resolve_token_for_modification", symbol=payload["trading_symbol"], error=str(e))
+                
             response = self.broker.modify_order(
                 order_id=order_id,
                 price=self._format_price(new_price),
@@ -304,6 +323,9 @@ class OrderManager:
                 exchange_segment=payload["exchange_segment"],
                 product=payload["product"],
                 order_type=payload["order_type"],
+                transaction_type=payload.get("transaction_type"),
+                trigger_price=payload.get("trigger_price", "0"),
+                instrument_token=str(instrument_token) if instrument_token else None,
             )
             validate_order_response(response, context="modify_order")
             

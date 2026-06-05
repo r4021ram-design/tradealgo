@@ -119,7 +119,7 @@ export const OptionChain = () => {
   const openOrderModal = useTerminalStore(s => s.openOrderModal);
 
   const tableRef = useRef(null);
-  const scrolledRef = useRef(false);
+  const lastScrolledKey = useRef('');
   const [showGreeks, setShowGreeks] = useState(true);
   const [showFullChain, setShowFullChain] = useState(false);
 
@@ -257,26 +257,37 @@ export const OptionChain = () => {
     });
   }, [optionChain, showFullChain, atmIndex, spotPrice, showGreeks, daysToExpiry]);
 
-  // Auto-scroll to ATM on first load
+  // Auto-scroll to ATM when underlying, expiry, or ATM strike changes
   useEffect(() => {
-    if (scrolledRef.current || !optionChain.length) return;
+    if (!optionChain.length || !selectedUnderlying || !selectedExpiry) return;
+    
+    // Find the ATM row strike
+    const atm = optionChain.find(r => r.isATM);
+    const atmStrikeVal = atm ? atm.strike : null;
+    if (!atmStrikeVal) return;
+
+    const key = `${selectedUnderlying}-${selectedExpiry}-${atmStrikeVal}`;
+    if (lastScrolledKey.current === key) return;
+
     const timer = setTimeout(() => {
       const atmEl = document.querySelector('.oc-atm-row');
       if (atmEl && tableRef.current) {
         const container = tableRef.current;
-        const rowTop = atmEl.offsetTop;
-        const containerH = container.clientHeight;
-        container.scrollTop = rowTop - containerH / 2 + 20;
-        scrolledRef.current = true;
+        const containerRect = container.getBoundingClientRect();
+        const atmRect = atmEl.getBoundingClientRect();
+        
+        // Calculate relative top of ATM row within the container's scroll height
+        const relativeTop = atmRect.top - containerRect.top + container.scrollTop;
+        
+        // Center the ATM row in the container
+        container.scrollTop = relativeTop - container.clientHeight / 2 + (atmRect.height / 2);
+        
+        lastScrolledKey.current = key;
       }
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [optionChain]);
+    }, 150);
 
-  // Reset scroll flag on underlying change
-  useEffect(() => {
-    scrolledRef.current = false;
-  }, [selectedUnderlying]);
+    return () => clearTimeout(timer);
+  }, [optionChain, selectedUnderlying, selectedExpiry]);
 
   // Totals
   const totals = useMemo(() => {

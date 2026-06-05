@@ -36,6 +36,7 @@ def create_container(config_path: Path) -> Container:
         poll_interval=config["risk"].get("position_poll_interval_seconds", 5),
         logger=logger,
     )
+    position_tracker.paper_trade = config["risk"].get("paper_trade", True)
     container.register(PositionTracker, instance=position_tracker)
 
     websocket = WebSocketFeed(

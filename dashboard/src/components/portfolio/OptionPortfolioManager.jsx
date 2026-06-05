@@ -20,6 +20,7 @@ export const OptionPortfolioManager = () => {
   const { legs, addLeg, updateLeg, removeLeg, underlyingPrice, interestRate, dividendYield, setGlobalParams } = usePortfolioStore();
   const livePositions = useTerminalStore(state => state.positions);
   const spotPrice = useTerminalStore(state => state.spotPrice);
+  const selectedUnderlying = useTerminalStore(state => state.selectedUnderlying);
 
   useEffect(() => {
     if (spotPrice > 0) {
@@ -30,6 +31,10 @@ export const OptionPortfolioManager = () => {
   const [simDate, setSimDate] = useState(0);
   const [ivShifts, setIvShifts] = useState([0, 0.04, 0.08]); // Blue (Base), Green (+4%), Red (+8%)
   const [excludedLivePositions, setExcludedLivePositions] = useState({});
+
+  // Filter States
+  const [modeFilter, setModeFilter] = useState('ALL'); // 'ALL' | 'LIVE' | 'PAPER'
+  const [underlyingFilter, setUnderlyingFilter] = useState('ALL'); // 'ALL' or specific symbol
 
   // Filter only active positions from broker
   const activeLivePositions = useMemo(() => {
@@ -57,6 +62,7 @@ export const OptionPortfolioManager = () => {
         underlying: parsed.underlying || 'NIFTY',
         isOpen: excludedLivePositions[pos.symbol] !== false,
         isLive: true,
+        isPaper: pos.paper_trade || false,
         size,
         strike: parsed.strike,
         type: parsed.type,
@@ -74,8 +80,77 @@ export const OptionPortfolioManager = () => {
 
   // Combine Manually Entered Strategy Legs and Live Broker Positions
   const combinedLegs = useMemo(() => {
-    return [...parsedLiveLegs, ...legs];
-  }, [parsedLiveLegs, legs]);
+    const parsedManualLegs = legs.map(l => {
+      const parsedSymbol = l.symbol ? parseOptionSymbol(l.symbol) : null;
+      const legUnderlying = (parsedSymbol && parsedSymbol.underlying) || l.underlying || selectedUnderlying || 'NIFTY';
+      return {
+        ...l,
+        underlying: legUnderlying,
+        isPaper: true,
+        isLive: false,
+      };
+    });
+    return [...parsedLiveLegs, ...parsedManualLegs];
+  }, [parsedLiveLegs, legs, selectedUnderlying]);
+
+  // Unique Underlyings list for filter
+  const uniqueUnderlyings = useMemo(() => {
+    const symbols = new Set();
+    combinedLegs.forEach(leg => {
+      if (leg.underlying) {
+        symbols.add(leg.underlying.toUpperCase());
+      }
+    });
+    // Add defaults
+    symbols.add('NIFTY');
+    symbols.add('BANKNIFTY');
+    symbols.add('SENSEX');
+    return Array.from(symbols).sort();
+  }, [combinedLegs]);
+
+  // Filtered Legs for analysis
+  const filteredLegs = useMemo(() => {
+    return combinedLegs.filter(leg => {
+      // 1. Mode Filter
+      if (modeFilter === 'PAPER' && !leg.isPaper) return false;
+      if (modeFilter === 'LIVE' && leg.isPaper) return false;
+
+      // 2. Underlying Filter
+      if (underlyingFilter !== 'ALL') {
+        const legUnd = (leg.underlying || '').toUpperCase();
+        if (legUnd !== underlyingFilter.toUpperCase()) return false;
+      }
+      return true;
+    });
+  }, [combinedLegs, modeFilter, underlyingFilter]);
+
+  // Filtered live positions for table display
+  const displayedLiveLegs = useMemo(() => {
+    return parsedLiveLegs.filter(leg => {
+      if (modeFilter === 'PAPER' && !leg.isPaper) return false;
+      if (modeFilter === 'LIVE' && leg.isPaper) return false;
+      if (underlyingFilter !== 'ALL' && (leg.underlying || '').toUpperCase() !== underlyingFilter.toUpperCase()) return false;
+      return true;
+    });
+  }, [parsedLiveLegs, modeFilter, underlyingFilter]);
+
+  // Filtered manual strategy legs for table display
+  const displayedManualLegs = useMemo(() => {
+    return legs.map(l => {
+      const parsedSymbol = l.symbol ? parseOptionSymbol(l.symbol) : null;
+      const legUnderlying = (parsedSymbol && parsedSymbol.underlying) || l.underlying || selectedUnderlying || 'NIFTY';
+      return {
+        ...l,
+        underlying: legUnderlying,
+        isPaper: true,
+        isLive: false,
+      };
+    }).filter(leg => {
+      if (modeFilter === 'LIVE') return false;
+      if (underlyingFilter !== 'ALL' && (leg.underlying || '').toUpperCase() !== underlyingFilter.toUpperCase()) return false;
+      return true;
+    });
+  }, [legs, modeFilter, underlyingFilter, selectedUnderlying]);
 
   // Toggle dynamic inclusion of live broker positions in scenario risk engine
   const handleToggleLivePosition = (symbol, checked) => {
@@ -87,17 +162,37 @@ export const OptionPortfolioManager = () => {
 
   // Scenario Chart Data
   const chartData = useMemo(() => {
-    const activeLegs = combinedLegs.filter(l => l.isOpen);
+    const activeLegs = filteredLegs.filter(l => l.isOpen);
     if (activeLegs.length === 0) return [];
     
-    const strikes = activeLegs.map(l => l.strike);
-    const minStrike = Math.min(...strikes, underlyingPrice) * 0.85;
-    const maxStrike = Math.max(...strikes, underlyingPrice) * 1.15;
+    const strikes = activeLegs.map(l => l.strike).filter(s => s !== null && s !== undefined && s > 0 && !isNaN(s));
+    const minStrike = strikes.length > 0 ? Math.min(...strikes, underlyingPrice) : underlyingPrice;
+    const maxStrike = strikes.length > 0 ? Math.max(...strikes, underlyingPrice) : underlyingPrice;
+    
+    // Scale X-axis range to span at least 6% of the spot price (+/- 3%) for visibility
+    const range = Math.max(maxStrike - minStrike, underlyingPrice * 0.06);
+    const startX = minStrike - range * 0.25;
+    const endX = maxStrike + range * 0.25;
     
     const data = [];
-    for (let s = minStrike; s <= maxStrike; s += (maxStrike - minStrike) / 50) {
+    const stepCount = 80;
+    const increment = (endX - startX) / stepCount;
+    for (let s = startX; s <= endX; s += increment) {
       const point = { spot: s };
       
+      // Calculate Expiry PnL (T=0, final payout)
+      let expiryPnl = 0;
+      activeLegs.forEach(leg => {
+        if (leg.type === 'Stock' || leg.type === 'Future') {
+          expiryPnl += (s - leg.entryPrice) * leg.size;
+        } else {
+          const isCall = leg.type.toLowerCase() === 'call' || leg.type.toLowerCase() === 'ce';
+          const intrinsic = isCall ? Math.max(0, s - leg.strike) : Math.max(0, leg.strike - s);
+          expiryPnl += (intrinsic - leg.entryPrice) * leg.size;
+        }
+      });
+      point['pnl_expiry'] = expiryPnl;
+
       ivShifts.forEach((ivShift, idx) => {
         let totalPnl = 0;
         activeLegs.forEach(leg => {
@@ -123,13 +218,13 @@ export const OptionPortfolioManager = () => {
       data.push(point);
     }
     return data;
-  }, [combinedLegs, underlyingPrice, simDate, ivShifts, interestRate, dividendYield]);
+  }, [filteredLegs, underlyingPrice, simDate, ivShifts, interestRate, dividendYield]);
 
   // Aggregate Greeks calculation across manual legs & live positions
   const aggregateGreeks = useMemo(() => {
     let delta = 0, gamma = 0, theta = 0, vega = 0, realizedPnl = 0, openPnl = 0, netPremium = 0;
     
-    combinedLegs.forEach(leg => {
+    filteredLegs.forEach(leg => {
       if (!leg.isOpen) {
         if (leg.isLive) return; // ignore inactive live positions
         realizedPnl += (leg.exitPrice - leg.entryPrice) * leg.size;
@@ -156,7 +251,7 @@ export const OptionPortfolioManager = () => {
     });
 
     return { delta, gamma, theta, vega, totalPnl: realizedPnl + openPnl, netPremium };
-  }, [combinedLegs, underlyingPrice, simDate, interestRate, dividendYield]);
+  }, [filteredLegs, underlyingPrice, simDate, interestRate, dividendYield]);
 
   return (
     <div className="flex flex-col h-full bg-white text-black overflow-y-auto p-2" style={{ fontFamily: 'Calibri, Arial, sans-serif' }}>
@@ -168,19 +263,59 @@ export const OptionPortfolioManager = () => {
         </div>
       </div>
 
+      {/* Filter Bar */}
+      <div className="flex items-center gap-4 bg-[#f2f2f2] border border-[#ccc] px-2 py-1.5 mb-2 text-xs">
+        <div className="flex items-center gap-1.5">
+          <span className="font-bold text-[#555]">TRADING MODE:</span>
+          <select 
+            className="bg-white border border-[#ccc] px-2 py-0.5 outline-none font-bold text-xs"
+            value={modeFilter}
+            onChange={(e) => setModeFilter(e.target.value)}
+          >
+            <option value="ALL">ALL TRADES</option>
+            <option value="LIVE">LIVE (ACTUAL) TRADES</option>
+            <option value="PAPER">PAPER TRADES</option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="font-bold text-[#555]">UNDERLYING:</span>
+          <select 
+            className="bg-white border border-[#ccc] px-2 py-0.5 outline-none font-bold text-xs"
+            value={underlyingFilter}
+            onChange={(e) => setUnderlyingFilter(e.target.value)}
+          >
+            <option value="ALL">ALL SYMBOLS</option>
+            {uniqueUnderlyings.map(und => (
+              <option key={und} value={und}>{und}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="flex flex-row gap-2 mb-2 h-64">
         {/* Chart */}
         <div className="flex-1 border border-[#ccc] bg-white relative">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <LineChart data={chartData} margin={{ top: 15, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
               <XAxis dataKey="spot" stroke="#000" tick={{ fontSize: 10 }} domain={['dataMin', 'dataMax']} type="number" tickFormatter={(v) => Math.round(v)} />
               <YAxis stroke="#000" tick={{ fontSize: 10 }} />
-              <Tooltip labelFormatter={(label) => `Spot Price: ${Math.round(label)}`} contentStyle={{ backgroundColor: '#fff', borderColor: '#ccc', fontSize: 12, color: '#000' }} />
+              <Tooltip 
+                labelFormatter={(label) => `Spot Price: ${Math.round(label)}`} 
+                formatter={(value) => [`₹ ${Number(value).toFixed(2)}`]}
+                contentStyle={{ backgroundColor: '#fff', borderColor: '#ccc', fontSize: 12, color: '#000' }} 
+              />
               <ReferenceLine y={0} stroke="#000" />
-              <Line type="monotone" dataKey="pnl_0" stroke="#0000ff" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="pnl_1" stroke="#008000" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="pnl_2" stroke="#ff0000" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+              <ReferenceLine x={underlyingPrice} stroke="#ff9900" strokeDasharray="3 3" label={{ value: `Spot: ${Math.round(underlyingPrice)}`, position: 'top', fill: '#ff9900', fontSize: 10, fontWeight: 'bold' }} />
+              
+              {/* Expiry Payoff Curve (peaked dashed line, similar to Kotak Securities OneTouch) */}
+              <Line type="monotone" dataKey="pnl_expiry" stroke="#7f7f7f" strokeWidth={2} strokeDasharray="4 4" name="At Expiry" dot={false} isAnimationActive={false} />
+              
+              {/* Target Date Scenario Payoff Curves */}
+              <Line type="monotone" dataKey="pnl_0" stroke="#0000ff" strokeWidth={1.5} name={simDate === 0 ? "Today (Base IV)" : `T+${simDate} (Base IV)`} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="pnl_1" stroke="#008000" strokeWidth={1.5} name={simDate === 0 ? `Today (+${(ivShifts[1]*100).toFixed(0)}% IV)` : `T+${simDate} (+${(ivShifts[1]*100).toFixed(0)}% IV)`} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="pnl_2" stroke="#ff0000" strokeWidth={1.5} name={simDate === 0 ? `Today (+${(ivShifts[2]*100).toFixed(0)}% IV)` : `T+${simDate} (+${(ivShifts[2]*100).toFixed(0)}% IV)`} dot={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -324,14 +459,14 @@ export const OptionPortfolioManager = () => {
               </tr>
             </thead>
             <tbody>
-              {parsedLiveLegs.length === 0 ? (
+              {displayedLiveLegs.length === 0 ? (
                 <tr>
                   <td colSpan="14" className="text-center text-gray-500 py-3 bg-white font-bold">
-                    No active positions found in Kotak Neo Broker account.
+                    No active positions found matching the current filters.
                   </td>
                 </tr>
               ) : (
-                parsedLiveLegs.map((leg, i) => {
+                displayedLiveLegs.map((leg, i) => {
                   const pnl = (leg.ltp - leg.entryPrice) * leg.size;
                   const optType = leg.type === 'Call' || leg.type === 'CE' ? 'CE' : leg.type === 'Put' || leg.type === 'PE' ? 'PE' : leg.type;
                   
@@ -392,7 +527,7 @@ export const OptionPortfolioManager = () => {
               </tr>
             </thead>
             <tbody>
-              {legs.map((leg, i) => {
+              {displayedManualLegs.map((leg, i) => {
                 const simDTE = Math.max(0, leg.dte - simDate);
                 const simT = simDTE / 365.0;
                 const bs = calculateBlackScholes(leg.type, underlyingPrice, leg.strike, simT, interestRate, leg.iv, dividendYield);
@@ -445,9 +580,9 @@ export const OptionPortfolioManager = () => {
               })}
               
               {/* Empty Rows Padding */}
-              {Array.from({ length: Math.max(0, 5 - legs.length) }).map((_, i) => (
+              {Array.from({ length: Math.max(0, 5 - displayedManualLegs.length) }).map((_, i) => (
                 <tr key={`empty-${i}`}>
-                  <td className="bg-[#e6e6e6] text-center">{legs.length + i + 1}</td>
+                  <td className="bg-[#e6e6e6] text-center">{displayedManualLegs.length + i + 1}</td>
                   <td className="bg-[#c6efce] text-center">-</td>
                   <td className="excel-input"></td>
                   <td className="excel-input"></td>
