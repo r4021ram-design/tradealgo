@@ -17,6 +17,7 @@ from kotak_algo.core.scheduler import TimeScheduler
 from kotak_algo.core.strike_selector import StrikeSelector
 from kotak_algo.strategies.straddle import StraddleStrategy
 from kotak_algo.strategies.strangle import StrangleStrategy
+from kotak_algo.strategies.iron_condor import IronCondorStrategy
 from kotak_algo.utils.config_loader import load_config
 from kotak_algo.config_models import AppConfig
 from kotak_algo.utils.logger import get_logger
@@ -94,6 +95,20 @@ class AlgoApp:
                 StrangleStrategy(
                     name="strangle",
                     config=strategies["strangle"],
+                    scheduler=self.scheduler,
+                    strike_selector=self.strike_selector,
+                    order_manager=self.order_manager,
+                    position_tracker=self.position_tracker,
+                    risk_manager=self.risk_manager,
+                    notifier=self.notifier,
+                    logger=self.logger,
+                )
+            )
+        if strategies.get("iron_condor", {}).get("enabled", True):
+            self.strategies.append(
+                IronCondorStrategy(
+                    name="iron_condor",
+                    config=strategies["iron_condor"],
                     scheduler=self.scheduler,
                     strike_selector=self.strike_selector,
                     order_manager=self.order_manager,

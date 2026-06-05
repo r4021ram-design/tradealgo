@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Activity, Signal } from 'lucide-react';
+import { Clock, Activity, Signal, Sun, Moon } from 'lucide-react';
 import { useTerminalStore } from '../../store/useTerminalStore';
 
 export const TopBar = () => {
@@ -26,6 +26,8 @@ export const TopBar = () => {
   const setActiveView = useTerminalStore(state => state.setActiveView);
   const isPaperTrade = useTerminalStore(state => state.isPaperTrade);
   const togglePaperTrade = useTerminalStore(state => state.togglePaperTrade);
+  const theme = useTerminalStore(state => state.theme);
+  const toggleTheme = useTerminalStore(state => state.toggleTheme);
 
   const handleModeChange = async (paperTrade) => {
     if (!paperTrade) {
@@ -43,35 +45,35 @@ export const TopBar = () => {
   };
 
   return (
-    <div className="flex items-center justify-between bg-finance-panel border-b border-finance-border px-2 py-1 text-sm shrink-0">
+    <div className="flex items-center justify-between bg-finance-panel dark:bg-slate-900 border-b border-finance-border dark:border-slate-800 px-2 py-1 text-sm shrink-0">
       <div className="flex items-center space-x-6">
         <div className="flex items-center space-x-2 font-mono">
-          <span className="text-[#555]">NIFTY</span>
+          <span className="text-[#555] dark:text-slate-400">NIFTY</span>
           <span className="text-finance-green font-bold">
             {niftySpot.toFixed(2)}
           </span>
         </div>
         <div className="flex items-center space-x-2 font-mono">
-          <span className="text-[#555]">BANKNIFTY</span>
+          <span className="text-[#555] dark:text-slate-400">BANKNIFTY</span>
           <span className="text-finance-green font-bold">
             {bankNiftySpot.toFixed(2)}
           </span>
         </div>
         <div className="flex items-center space-x-2 font-mono">
-          <span className="text-[#555]">INDIA VIX</span>
-          <span className="text-finance-text">12.45</span>
+          <span className="text-[#555] dark:text-slate-400">INDIA VIX</span>
+          <span className="text-finance-text dark:text-slate-200">12.45</span>
         </div>
       </div>
 
       <div className="flex items-center space-x-4">
         {/* Active Mode Switcher */}
-        <div className="flex items-center bg-[#f0f0f0] border border-[#ccc] p-0.5 rounded">
+        <div className="flex items-center bg-[#f0f0f0] dark:bg-slate-950 border border-[#ccc] dark:border-slate-800 p-0.5 rounded">
           <button
             onClick={() => setActiveView('terminal')}
             className={`px-3 py-0.5 text-xs font-bold transition-all duration-250 cursor-pointer rounded-sm ${
               activeView === 'terminal'
-                ? 'bg-[#002060] text-white shadow-sm'
-                : 'text-[#555] hover:text-black hover:bg-[#e0e0e0]'
+                ? 'bg-[#002060] dark:bg-indigo-600 text-white shadow-sm'
+                : 'text-[#555] dark:text-slate-400 hover:text-black dark:hover:text-slate-200 hover:bg-[#e0e0e0] dark:hover:bg-slate-800'
             }`}
             style={{ fontFamily: 'Calibri, Arial, sans-serif' }}
           >
@@ -81,8 +83,8 @@ export const TopBar = () => {
             onClick={() => setActiveView('oms')}
             className={`px-3 py-0.5 text-xs font-bold transition-all duration-250 cursor-pointer rounded-sm ${
               activeView === 'oms'
-                ? 'bg-[#002060] text-white shadow-sm'
-                : 'text-[#555] hover:text-black hover:bg-[#e0e0e0]'
+                ? 'bg-[#002060] dark:bg-indigo-600 text-white shadow-sm'
+                : 'text-[#555] dark:text-slate-400 hover:text-black dark:hover:text-slate-200 hover:bg-[#e0e0e0] dark:hover:bg-slate-800'
             }`}
             style={{ fontFamily: 'Calibri, Arial, sans-serif' }}
           >
@@ -91,13 +93,13 @@ export const TopBar = () => {
         </div>
 
         {/* Trading Mode Switcher */}
-        <div className="flex items-center bg-[#f0f0f0] border border-[#ccc] p-0.5 rounded">
+        <div className="flex items-center bg-[#f0f0f0] dark:bg-slate-950 border border-[#ccc] dark:border-slate-800 p-0.5 rounded">
           <button
             onClick={() => handleModeChange(true)}
             className={`px-3 py-0.5 text-xs font-bold transition-all duration-250 cursor-pointer rounded-sm ${
               isPaperTrade
                 ? 'bg-amber-600 text-white shadow-sm font-extrabold'
-                : 'text-[#555] hover:text-black hover:bg-[#e0e0e0]'
+                : 'text-[#555] dark:text-slate-400 hover:text-black dark:hover:text-slate-200 hover:bg-[#e0e0e0] dark:hover:bg-slate-800'
             }`}
             style={{ fontFamily: 'Calibri, Arial, sans-serif' }}
           >
@@ -108,7 +110,7 @@ export const TopBar = () => {
             className={`px-3 py-0.5 text-xs font-bold transition-all duration-250 cursor-pointer rounded-sm ${
               !isPaperTrade
                 ? 'bg-rose-600 text-white shadow-sm font-extrabold animate-pulse'
-                : 'text-[#555] hover:text-black hover:bg-[#e0e0e0]'
+                : 'text-[#555] dark:text-slate-400 hover:text-black dark:hover:text-slate-200 hover:bg-[#e0e0e0] dark:hover:bg-slate-800'
             }`}
             style={{ fontFamily: 'Calibri, Arial, sans-serif' }}
           >
@@ -127,6 +129,13 @@ export const TopBar = () => {
         </div>
         
         <div className="flex items-center space-x-4 border-l border-[#ccc] pl-4">
+          <button
+            onClick={toggleTheme}
+            className="text-[#555] hover:text-black dark:text-slate-400 dark:hover:text-slate-200 transition-colors p-1 cursor-pointer flex items-center justify-center mr-1"
+            title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Excel Mode'}
+          >
+            {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
+          </button>
           <div className="flex items-center space-x-1 text-finance-green">
             <Signal size={14} />
             <span className="text-xs">CONNECTED</span>

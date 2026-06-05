@@ -18,7 +18,7 @@ const SquareOffRenderer = (props) => {
   return (
     <button 
       onClick={() => squareOff(data.symbol)}
-      className="bg-[#e6e6e6] border border-[#ccc] hover:bg-[#ffc7ce] hover:text-[#9c0006] text-black text-xs px-2 py-0.5 font-bold transition-colors"
+      className="bg-[#e6e6e6] dark:bg-slate-800 border border-[#ccc] dark:border-slate-700 hover:bg-[#ffc7ce] dark:hover:bg-rose-950/45 hover:text-[#9c0006] dark:hover:text-rose-400 dark:hover:border-rose-900 text-black dark:text-slate-200 text-xs px-2 py-0.5 font-bold transition-colors cursor-pointer"
     >
       SQ OFF
     </button>
@@ -30,10 +30,17 @@ import { parseOptionSymbol } from '../../utils/symbolParser';
 export const NetPositionGrid = () => {
   const gridRef = useRef();
   const positions = useTerminalStore(state => state.positions);
+  const theme = useTerminalStore(state => state.theme);
   const [activeTab, setActiveTab] = useState('Market Watch');
   const { pendingOrders, executedOrders, cancelOrder, modifyOrder } = useOrdersData();
 
   const tabs = ['Market Watch', 'Net Position', 'Option Chain', 'Strategy Builder', 'Portfolio Manager', 'Pending Orders', 'Executed Trades'];
+
+  const isDark = theme === 'dark';
+  const greenColor = isDark ? '#10b981' : '#008800';
+  const redColor = isDark ? '#f43f5e' : '#cc0000';
+  const neutralColor = isDark ? '#94a3b8' : '#555';
+  const textColor = isDark ? '#f8fafc' : '#000';
 
   const columnDefs = useMemo(() => [
     { field: 'underlying', headerName: 'Underlying', width: 100 },
@@ -64,8 +71,8 @@ export const NetPositionGrid = () => {
         return parseOptionSymbol(params.data.symbol).type;
       },
       cellStyle: params => {
-        if (params.value === 'CE') return { color: '#008800', fontWeight: 'bold' };
-        if (params.value === 'PE') return { color: '#cc0000', fontWeight: 'bold' };
+        if (params.value === 'CE') return { color: greenColor, fontWeight: 'bold' };
+        if (params.value === 'PE') return { color: redColor, fontWeight: 'bold' };
         return { fontWeight: 'bold' };
       }
     },
@@ -74,7 +81,7 @@ export const NetPositionGrid = () => {
       headerName: 'Net Qty', 
       width: 90, 
       type: 'numericColumn',
-      cellStyle: params => ({ color: params.value > 0 ? '#008800' : params.value < 0 ? '#cc0000' : '#555' })
+      cellStyle: params => ({ color: params.value > 0 ? greenColor : params.value < 0 ? redColor : neutralColor })
     },
     { field: 'avgBuyPrice', headerName: 'Avg Buy', width: 100, type: 'numericColumn', valueFormatter: p => p.value.toFixed(2) },
     { field: 'avgSellPrice', headerName: 'Avg Sell', width: 100, type: 'numericColumn', valueFormatter: p => p.value.toFixed(2) },
@@ -95,7 +102,7 @@ export const NetPositionGrid = () => {
       width: 110, 
       type: 'numericColumn',
       valueFormatter: p => p.value ? p.value.toFixed(2) : '0.00',
-      cellStyle: params => ({ color: params.value > 0 ? '#008800' : params.value < 0 ? '#cc0000' : '#000' })
+      cellStyle: params => ({ color: params.value > 0 ? greenColor : params.value < 0 ? redColor : textColor })
     },
     { 
       headerName: 'Unrealized (MTM)', 
@@ -110,7 +117,7 @@ export const NetPositionGrid = () => {
           : (p.avgSellPrice - p.ltp) * Math.abs(p.netQty);
       },
       valueFormatter: p => p.value ? p.value.toFixed(2) : '0.00',
-      cellStyle: params => ({ color: params.value > 0 ? '#008800' : params.value < 0 ? '#cc0000' : '#555', fontWeight: 'bold' }),
+      cellStyle: params => ({ color: params.value > 0 ? greenColor : params.value < 0 ? redColor : neutralColor, fontWeight: 'bold' }),
       aggFunc: 'sum'
     },
     {
@@ -133,7 +140,7 @@ export const NetPositionGrid = () => {
         return params.data.theta * params.data.netQty;
       },
       valueFormatter: p => p.value ? p.value.toFixed(2) : '-',
-      cellStyle: params => ({ color: params.value < 0 ? '#cc0000' : params.value > 0 ? '#008800' : '#555' }),
+      cellStyle: params => ({ color: params.value < 0 ? redColor : params.value > 0 ? greenColor : neutralColor }),
       aggFunc: 'sum'
     },
     {
@@ -143,7 +150,7 @@ export const NetPositionGrid = () => {
       sortable: false,
       filter: false
     }
-  ], []);
+  ], [greenColor, redColor, neutralColor, textColor]);
 
   const defaultColDef = useMemo(() => ({
     sortable: true,
@@ -160,20 +167,20 @@ export const NetPositionGrid = () => {
   }, [positions]);
 
   return (
-    <div className="flex flex-col flex-1 bg-white min-h-0 overflow-hidden">
+    <div className="flex flex-col flex-1 bg-white dark:bg-slate-900 min-h-0 overflow-hidden">
       {/* Tabs */}
-      <div className="flex bg-finance-panel border-b border-[#ccc]">
+      <div className="flex bg-finance-panel dark:bg-slate-950 border-b border-[#ccc] dark:border-slate-800">
         {tabs.map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={clsx(
-              "px-4 py-2 text-sm font-semibold transition-colors border-b-2",
+              "px-4 py-2 text-sm font-semibold transition-colors border-b-2 cursor-pointer",
               activeTab === tab 
-                ? "border-finance-green text-finance-green bg-white font-bold" 
-                : "border-transparent text-[#555] hover:text-black hover:bg-[#e6e6e6]"
+                ? "border-finance-green dark:border-indigo-500 text-finance-green dark:text-indigo-400 bg-white dark:bg-slate-900 font-bold" 
+                : "border-transparent text-[#555] dark:text-slate-400 hover:text-black dark:hover:text-slate-200 hover:bg-[#e6e6e6] dark:hover:bg-slate-800"
             )}
-            style={{ fontFamily: 'Calibri, Arial, sans-serif' }}
+            style={{ fontFamily: theme === 'dark' ? 'Inter, sans-serif' : 'Calibri, Arial, sans-serif' }}
           >
             {tab}
           </button>
@@ -208,7 +215,7 @@ export const NetPositionGrid = () => {
         ) : activeTab === 'Executed Trades' ? (
           <OrdersGrid orders={executedOrders} type="executed" cancelOrder={cancelOrder} modifyOrder={modifyOrder} />
         ) : (
-          <div className="flex items-center justify-center h-full text-[#888] bg-white">
+          <div className="flex items-center justify-center h-full text-[#888] dark:text-slate-500 bg-white dark:bg-slate-900">
             {activeTab} data not available in demo.
           </div>
         )}

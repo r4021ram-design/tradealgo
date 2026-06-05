@@ -51,6 +51,42 @@ class StrikeSelector:
         pe = self._match_option(rows, underlying, expiry, pe_strike, "PE", instrument_type)
         return {"spot": selection["spot"], "atm": selection["atm"], "ce": ce, "pe": pe}
 
+    def select_iron_condor(
+        self,
+        underlying: str,
+        exchange_segment: str,
+        strike_gap: int,
+        strangle_gap: int,
+        condor_gap: int,
+        instrument_type: str | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        selection = self.select_straddle(
+            underlying=underlying,
+            exchange_segment=exchange_segment,
+            strike_gap=strike_gap,
+            instrument_type=instrument_type,
+        )
+        rows = self._load_rows(exchange_segment)
+        expiry = self._nearest_expiry(rows, underlying, instrument_type)
+        short_ce_strike = selection["atm"] + strangle_gap
+        long_ce_strike = short_ce_strike + condor_gap
+        short_pe_strike = selection["atm"] - strangle_gap
+        long_pe_strike = short_pe_strike - condor_gap
+        
+        short_ce = self._match_option(rows, underlying, expiry, short_ce_strike, "CE", instrument_type)
+        long_ce = self._match_option(rows, underlying, expiry, long_ce_strike, "CE", instrument_type)
+        short_pe = self._match_option(rows, underlying, expiry, short_pe_strike, "PE", instrument_type)
+        long_pe = self._match_option(rows, underlying, expiry, long_pe_strike, "PE", instrument_type)
+        
+        return {
+            "spot": selection["spot"],
+            "atm": selection["atm"],
+            "short_ce": short_ce,
+            "long_ce": long_ce,
+            "short_pe": short_pe,
+            "long_pe": long_pe,
+        }
+
     def spot_price(self, underlying: str, exchange_segment: str, instrument_type: str | None = None) -> float:
         # Try fetching real-time quote for index spot price from the broker first
         idx_token = "26000" if underlying.upper() == "NIFTY" else "26009" if underlying.upper() == "BANKNIFTY" else None

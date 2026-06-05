@@ -12,6 +12,16 @@ import { getApiUrl } from './utils/api';
 import { Lock, Unlock, ShieldAlert, KeyRound, CheckCircle } from 'lucide-react';
 
 function App() {
+  const theme = useTerminalStore(state => state.theme);
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
   const [isUnlocked, setIsUnlocked] = useState(() => {
     return sessionStorage.getItem('terminal_unlocked') === 'true';
   });

@@ -159,7 +159,7 @@ class PositionTracker:
             "entry_price": float(leg.get("entry_price", 0.0)),
             "sl_level": float(leg.get("sl_level", 0.0)),
             "quantity": leg["lot_size"] * leg["lots"],
-            "side": "SHORT",
+            "side": leg.get("side", "SHORT"),
             "exchange_segment": leg["exchange_segment"],
             "product": leg["product"],
             "status": "OPEN",

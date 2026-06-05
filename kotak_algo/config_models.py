@@ -32,6 +32,7 @@ class StrategyConfig(BaseModel):
     exit_time: str
     instrument_type: Optional[str] = None
     strangle_gap: Optional[int] = None
+    condor_gap: Optional[int] = None
 
 
 class RiskConfig(BaseModel):

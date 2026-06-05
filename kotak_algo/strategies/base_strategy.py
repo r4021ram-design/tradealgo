@@ -96,17 +96,51 @@ class BaseStrategy(ABC):
             net_premium = 0.0
 
             try:
+                # 1. Resolve transaction_type and side for each leg
                 for leg in self.legs:
-                    order = self.order_manager.place_entry_order(leg, transaction_type="S")
-                    entry_orders.append(order)
-                    fill_price = float(order["fill_price"] or 0.0)
+                    leg_tx = leg.get("transaction_type") or leg.get("side") or leg.get("action") or self.config.get("transaction_type") or "S"
+                    leg_tx = "B" if str(leg_tx).upper() in ("B", "BUY", "LONG") else "S"
+                    leg["transaction_type"] = leg_tx
+                    leg["side"] = "LONG" if leg_tx == "B" else "SHORT"
+
+                # 2. Partition legs into buy (hedges) and sell (writing) legs
+                buy_legs = [leg for leg in self.legs if leg["transaction_type"] == "B"]
+                sell_legs = [leg for leg in self.legs if leg["transaction_type"] == "S"]
+
+                def place_and_confirm(leg, txn_type):
+                    self.logger.info("submitting_sequenced_leg", symbol=leg["trading_symbol"], txn_type=txn_type)
+                    order = self.order_manager.place_entry_order(leg, transaction_type=txn_type)
+                    
+                    if order.get("status") != "filled":
+                        self.logger.info("waiting_for_leg_fill", symbol=leg["trading_symbol"], order_id=order["order_id"])
+                        order = self.order_manager.confirm_fill(order["order_id"])
+                        
+                    fill_price = float(order.get("fill_price") or 0.0)
                     leg["entry_price"] = fill_price
                     leg["entry_order_id"] = order["order_id"]
-                    net_premium += fill_price
                     self.position_tracker.attach_strategy_leg(self.name, leg)
+                    self.logger.info("sequenced_leg_filled", symbol=leg["trading_symbol"], fill_price=fill_price)
+                    return order, fill_price
 
+                # 3. Execute Buy/Long legs first (Hedges) and confirm fill
+                for leg in buy_legs:
+                    order, fill_price = place_and_confirm(leg, "B")
+                    entry_orders.append(order)
+                    net_premium -= fill_price
+
+                # 4. Execute Sell/Short legs second (Writing) and confirm fill
+                for leg in sell_legs:
+                    order, fill_price = place_and_confirm(leg, "S")
+                    entry_orders.append(order)
+                    net_premium += fill_price
+
+                # 5. Place stop loss orders
                 for leg in self.legs:
-                    sl_level = float(leg["entry_price"]) * float(self.config.get("sl_multiplier", 2.0))
+                    if leg["side"] == "LONG":
+                        sl_level = float(leg["entry_price"]) / float(self.config.get("sl_multiplier", 2.0))
+                    else:
+                        sl_level = float(leg["entry_price"]) * float(self.config.get("sl_multiplier", 2.0))
+                        
                     leg["sl_level"] = sl_level
                     self.position_tracker.update_leg_metadata(leg["trading_symbol"], sl_level=sl_level)
                     sl_order = self.order_manager.place_stop_loss_order(leg, sl_level=sl_level)
@@ -138,10 +172,17 @@ class BaseStrategy(ABC):
             self.logger.info("strategy_square_off_started", strategy=self.name, reason=reason)
             
             try:
+                # Group open legs to ensure Sell/Short legs exit first, then Buy/Long (hedges) second
+                open_legs = []
                 for leg in self.legs:
                     tracked_leg = self.position_tracker.legs.get(leg["trading_symbol"], {})
-                    if tracked_leg.get("status") != "OPEN":
-                        continue
+                    if tracked_leg.get("status") == "OPEN":
+                        open_legs.append(leg)
+                
+                sell_legs = [leg for leg in open_legs if leg.get("transaction_type", "S") == "S"]
+                buy_legs = [leg for leg in open_legs if leg.get("transaction_type") == "B"]
+                
+                for leg in sell_legs + buy_legs:
                     sl_order_id = leg.get("sl_order_id")
                     if sl_order_id:
                         self.order_manager.cancel_order(sl_order_id)

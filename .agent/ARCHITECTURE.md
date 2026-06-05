@@ -89,9 +89,10 @@ kotakalgo/
 │
 ├── dashboard/                       # React Frontend (Vite + TailwindCSS v4)
 │   ├── package.json
+│   ├── tsconfig.json
 │   ├── src/
 │   │   ├── main.jsx                 # Entry point (AG Grid module registration)
-│   │   ├── App.jsx                  # Root layout: SplitPane + OrderModal
+│   │   ├── App.jsx                  # Root layout: Lock screen, SplitPane + OrderModal
 │   │   ├── App.css                  # Global styles
 │   │   ├── index.css                # Tailwind directives
 │   │   │
@@ -103,8 +104,8 @@ kotakalgo/
 │   │   ├── components/
 │   │   │   ├── layout/
 │   │   │   │   ├── MainLayout.jsx   # Full-screen layout wrapper
-│   │   │   │   ├── TopBar.jsx       # NIFTY/BANKNIFTY spot, MTM, clock, status
-│   │   │   │   └── SplitPane.jsx    # 30/70 left-right split
+│   │   │   │   ├── TopBar.jsx       # NIFTY/BANKNIFTY spot, MTM, active view tabs, paper switcher
+│   │   │   │   └── SplitPane.jsx    # Split-pane layout
 │   │   │   │
 │   │   │   ├── oms/                 # OMS Position Engine Simulation Grids
 │   │   │   │   ├── OMSDashboard.tsx # Composited layout with filtering/tabs
@@ -118,8 +119,9 @@ kotakalgo/
 │   │   │   │   └── MarketWatch.jsx  # AG Grid watchlist with live tick flashing
 │   │   │   │
 │   │   │   ├── orders/
-│   │   │   │   ├── NetPositionGrid.jsx  # AG Grid positions with P&L
-│   │   │   │   └── OrderModal.jsx       # Buy/Sell order entry modal
+│   │   │   │   ├── NetPositionGrid.jsx  # AG Grid positions with P&L & Greeks
+│   │   │   │   ├── OrderModal.jsx       # Buy/Sell order entry modal
+│   │   │   │   └── OrdersGrid.jsx       # Custom orders grid
 │   │   │   │
 │   │   │   ├── option-chain/        # Option chain panel (built, available)
 │   │   │   │   ├── OptionChainPanel.jsx
@@ -130,7 +132,7 @@ kotakalgo/
 │   │   │   │   └── StrategyBuilder.jsx  # Multi-leg strategy builder with payoff chart
 │   │   │   │
 │   │   │   ├── portfolio/
-│   │   │   │   └── OptionPortfolioManager.jsx  # Portfolio P&L visualization
+│   │   │   │   └── OptionPortfolioManager.jsx  # Portfolio scenario analysis & combined Greeks
 │   │   │   │
 │   │   │   ├── instruments/         # Instrument search
 │   │   │   ├── MetricCard.jsx       # Reusable metric display card
@@ -138,15 +140,19 @@ kotakalgo/
 │   │   │
 │   │   ├── hooks/
 │   │   │   ├── useTickStream.js     # WebSocket hook for real-time ticks
-│   │   │   ├── useMockData.js       # Live data polling (/sync-state)
+│   │   │   ├── useLiveData.js       # Live data polling (/sync-state)
+│   │   │   ├── useOrdersData.js     # Live orders polling (/api/orders)
 │   │   │   └── useOptionChainData.js # Option chain data fetching hook
 │   │   │
 │   │   ├── store/
-│   │   │   ├── useTerminalStore.js  # Zustand: positions, marketWatch, optionChain, orderModal
+│   │   │   ├── useTerminalStore.js  # Zustand: positions, marketWatch, activeView, paperMode
+│   │   │   ├── useTerminalStore.d.ts# TypeScript declarations for terminal store
 │   │   │   └── usePortfolioStore.js # Zustand: portfolio state
 │   │   │
 │   │   └── utils/
 │   │       ├── api.js               # API URL helper
+│   │       ├── symbolParser.js      # Clean option symbol parsing logic
+│   │       ├── i18n.js              # Localization configurations
 │   │       └── blackScholes.js      # Client-side Black-Scholes calculator
 │   │
 │   └── public/
@@ -160,6 +166,7 @@ kotakalgo/
 │           ├── orders.json/csv
 │           └── limits.json/csv
 │
+├── start_trading.bat                # Local services startup batch file
 ├── nse_scraper.py                   # NSE website scraper (fallback for option chain)
 ├── verify_db.py                     # Database verification script
 ├── ip_monitor.py                    # IP change monitoring
@@ -210,6 +217,13 @@ kotakalgo/
 │    GET  /api/contracts/nearest-expiry → Nearest expiry for symbol   │
 │    GET  /api/contracts/strikes/{s} → Available strikes              │
 │    GET  /api/contracts/lot-size/{s}→ Lot size for symbol            │
+│    POST /api/verify-pin            → Verify 4-digit Trading PIN     │
+│    GET  /api/orders                → Get session orders             │
+│    DELETE /api/orders/{order_id}   → Cancel pending order           │
+│    PUT  /api/orders/{order_id}     → Modify pending order           │
+│    GET  /api/config/paper-trade    → Get paper trading status       │
+│    POST /api/config/paper-trade    → Toggle & persist paper trade   │
+│    GET  /api/contracts/details     → Detailed contract specs        │
 │    WS   /ws/live-feed              → Real-time tick broadcast       │
 └─────────────────────────────┬───────────────────────────────────────┘
                               │
@@ -276,6 +290,7 @@ kotakalgo/
 
 ### 4.4 PositionTracker (`core/position_tracker.py`)
 - Tracks all open legs with real-time LTP, bid/ask, Greeks
+- **Rupee-term Greeks Integration**: Interacts with the Black-Scholes Greeks engine (`core/greeks_engine.py`) to calculate Delta, Gamma, Theta, and Vega. Incorporates RBI Repo rate (5.25%) as the risk-free rate `r` and sets options expiry time to 15:30 IST on expiry day for correct DTE (Days-To-Expiry) fractional year calculations.
 - **Background polling** thread reconciles with broker positions
 - **Market data cache** for all subscribed instruments
 - `parse_expiry()` handles NSE (Tuesday) and BSE (Thursday) expiry rules
@@ -283,6 +298,7 @@ kotakalgo/
 - Methods: `total_pnl()`, `net_premium_received()`, `ltp()`, `mid_price()`, `record_fill()`
 
 ### 4.5 RiskManager (`core/risk_manager.py`)
+- **Trading PIN Security**: Implements 4-digit Trading PIN authentication (`risk.trading_pin` in config, e.g., `1234`) via `POST /api/verify-pin` to prevent unauthorized actions and protect backend routes.
 - **Daily loss limit**: Shuts down if total P&L drops below `-max_daily_loss`
 - **Combined stop loss**: Exits all positions if loss exceeds X% of net premium
 - **Leg-level stop loss**: Individual SL triggers per option leg
@@ -297,13 +313,14 @@ State machine: `IDLE → ENTERING → IN_TRADE → EXITING → DONE`
 |----------|------|-------------|
 | **Straddle** | `straddle.py` | Sells ATM CE + PE at same strike |
 | **Strangle** | `strangle.py` | Sells OTM CE + PE with `strangle_gap` offset |
+| **Iron Condor** | `iron_condor.py` | Sells OTM Call/Put (Strangle) and buys further OTM Call/Put wings (Hedges) |
 
 Both inherit from `BaseStrategy` which provides:
 - `prepare()` → build legs, resolve tokens
 - `should_enter()` → checks scheduler for entry time
 - `should_exit()` → checks scheduler for exit time
-- `execute()` → places entry orders via OrderManager
-- `square_off()` → market exits all legs
+- `execute()` → places entry orders sequentially (Long legs executed/confirmed filled first)
+- `square_off()` → market exits all legs sequentially (Short legs exited first)
 - `_recover_strategy()` → re-attaches to broker positions on restart
 
 ### 4.7 OptionChainService (`core/option_chain.py`)
@@ -328,6 +345,12 @@ Pub/sub system for decoupled communication:
 - Daily sync scheduler fetches fresh contracts from Kotak Neo
 - ORM model: `Contract` (symbol, trading_symbol, token, expiry, strike, option_type, lot_size, etc.)
 - Services: `ContractService` (query/search), `ExpiryService` (expiry date logic)
+
+### 4.10 Option Portfolio Manager & Scenario Analysis (`portfolio/OptionPortfolioManager.jsx`)
+- **Combined Risk Engine**: Aggregates risk and computes combined Greeks (Delta, Gamma, Theta, Vega) across live broker positions (read from active portfolio, with individual inclusion toggles) and manual strategy designer/hedging simulation legs.
+- **Scenario Payoff Visualizations**: Renders interactive payoff curves showing P&L across a range of underlying prices. Displays the peaked **Expiry Payoff Line** (T=0 final payout) alongside scenario curves under different volatility and time conditions.
+- **Interactive Controls**: Features time shift slider (0 to 30 days) and custom volatility shifts (Blue base IV, Green shift, Red shift) to model risk profiles and stress test options.
+- **Dynamic X-Axis Scaling**: Automatically scales the graph's X-axis range to span at least 6% of the spot price (+/- 3%) for proper visual resolution of option curve characteristics.
 
 ---
 
@@ -368,6 +391,18 @@ strategies:
     sl_multiplier: 2.0
     entry_times: ["09:25", "13:05"]
     exit_time: "15:15"
+  iron_condor:
+    underlying: "NIFTY"
+    exchange_segment: "nse_fo"
+    product: "NRML"
+    lots: 1
+    lot_size: 65
+    strike_gap: 50
+    strangle_gap: 200                      # Distance from ATM to Shorts
+    condor_gap: 100                        # Distance from Shorts to Long hedges (wing width)
+    sl_multiplier: 2.0
+    entry_times: ["09:25", "13:05"]
+    exit_time: "15:15"
 
 risk:
   max_daily_loss: 5000
@@ -377,6 +412,7 @@ risk:
   max_reprice_attempts: 3
   reprice_interval_seconds: 30
   position_poll_interval_seconds: 5
+  trading_pin: "1234"                      # 4-digit Trading PIN for Lock Screen bypass
 
 nse_reference:
   enabled: true
@@ -472,11 +508,13 @@ GET /api/free/option-chain/{symbol}
 - `selectedUnderlying`, `selectedExpiry` — Option chain selection
 - `optionChain[]` — Option chain data rows
 - `orderModal{}` — Order entry modal state
-- `activeView` — Renders either the Live Terminal ('terminal') or the OMS Position Engine ('oms')
-- Actions: `updateTick()`, `setOptionChain()`, `squareOff()`, `executeStrategy()`, `setActiveView()`
+- `activeView` — Renders either the Live Terminal (`'terminal'`) or the OMS Simulator (`'oms'`)
+- `isPaperTrade` — Boolean tracking if Simulated paper trading or Live trading is active
+- `theme` — Layout theme: `'light'` (Excel spreadsheet look) or `'dark'` (premium terminal look)
+- Actions: `updateTick()`, `setOptionChain()`, `squareOff()`, `executeStrategy()`, `setActiveView()`, `togglePaperTrade()`, `fetchPaperTradeStatus()`, `toggleTheme()`
 
 **`usePortfolioStore`** (portfolio):
-- Portfolio state and P&L visualization data
+- Portfolio state, manual simulation legs, and P&L/scenario visualization data
 
 **`useOMSStore`** (OMS/RMS simulation):
 - `orders[]` — Placed simulation orders
@@ -484,9 +522,30 @@ GET /api/free/option-chain/{symbol}
 - `marketPrices{}` — Tracked LTP / market prices per key
 - Actions: `addOrder()`, `addFill()`, `updateMarketPrice()`, `getDerivedPositions()`, `getPositionSummaries()`
 
+### Premium Lock Screen & Trading PIN Security
+- Renders a secure keypad overlay (`App.jsx`) if `sessionStorage.getItem('terminal_unlocked')` is not `true`.
+- Prevents live data fetching (`useTickStream`, `useLiveData`) from starting before unlock.
+- Validates the 4-digit Trading PIN against the backend `/api/verify-pin` endpoint.
+- virtual keypad (0-9, CLEAR, backspace) and keyboard listener support.
+- Displays visual errors and a shake animation on invalid attempts.
+
+### Gateway Connection Watchdog
+- A polling task checks `/health` every 5 seconds.
+- Displays a status bar showing:
+  - `GATEWAY ONLINE` (green indicator dot)
+  - `GATEWAY OFFLINE` (pinging red indicator dot)
+- Renders recovery tips (e.g. running `start_trading.bat`) if the backend goes offline.
+
+### Global Keyboard Shortcuts
+Global shortcuts are active in `UnlockedApp` to allow ultra-fast order placement:
+- **`F1`**: Instantly triggers Buy order modal for the ATM Call Option (CE) of the selected underlying.
+- **`F2`**: Instantly triggers Sell order modal for the ATM Put Option (PE) of the selected underlying.
+- **`Escape`**: Closes the order entry modal.
+
 ### Hooks
 - `useTickStream()` — WebSocket connection to `/ws/live-feed`
 - `useLiveData()` — Polls `/sync-state` for positions/margins
+- `useOrdersData()` — Polls `/api/orders` to keep orders grid current
 - `useOptionChainData()` — Fetches option chain data from API
 
 ---
@@ -580,6 +639,7 @@ AlgoError (base)
 - **Heartbeat monitoring**: Force reconnect if no message for 30s
 - **Duplicate order prevention**: 10s cooldown per order signature
 - **Position reconciliation**: Auto-corrects local vs broker position mismatches
+- **Newton-Raphson Bisection Fallback**: Ensures implied volatility is successfully resolved even on deep ITM/OTM strikes by falling back from Newton-Raphson to Bisection search.
 - **Telegram alerts**: Critical events notify via Telegram bot
 
 ---
@@ -598,8 +658,8 @@ Saved to: `data/post_market_data/YYYY-MM-DD/`
 
 ## 14. Common Gotchas & Notes
 
-1. **Paper trade mode**: `config.yaml → risk.paper_trade: true` means all orders are simulated. Set to `false` for live trading.
-2. **SENSEX/BANKEX exchange segment**: Must use `bse_fo`, not `nse_fo`. This is handled dynamically in `api.py` line ~458.
+1. **Paper trade mode**: `config.yaml → risk.paper_trade: true` means all orders are simulated. This can be toggled dynamically from the dashboard header (requires user confirmation when enabling Live mode) and persists to both memory and `config.yaml`.
+2. **SENSEX/BANKEX exchange segment**: Must use `bse_fo`, not `nse_fo`. This is handled dynamically in `api.py` line ~467.
 3. **Expiry parsing**: `parse_expiry()` in `position_tracker.py` handles both weekly (YYMMDD) and monthly (YYMM) contract formats.
 4. **May 28, 2026 holiday**: Special handling — SENSEX expiry shifts to May 27 (Wednesday), NIFTY expiry stays May 26 (Tuesday).
 5. **AG Grid v35**: Requires explicit `ModuleRegistry.registerModules([AllCommunityModule])` in `main.jsx`.
@@ -609,4 +669,40 @@ Saved to: `data/post_market_data/YYYY-MM-DD/`
 9. **No routing library**: Dashboard uses conditional rendering, not React Router.
 10. **Kill switch**: `POST /square-off-all` or `RiskManager.activate_kill_switch()` exits everything immediately.
 11. **OMS/RMS Position Engine Simulation**: In the OMS view, order execution, FIFO matching, position flipping, and PNL calculation are computed locally on the client-side using `useOMSStore.ts` and `positionEngine.ts`. It does not execute live trades on the server or broker.
+12. **Start Helper Script**: The local services can be quickly launched using `start_trading.bat` in the project root.
+13. **Trading PIN Bypass**: Access to the dashboard is blocked until the 4-digit PIN (default: `1234`) is verified against `/api/verify-pin`. The unlock status is cached in the browser's `sessionStorage`.
+
+---
+
+## 15. Critical Risk & Compliance Considerations (SEBI & Broker Limits)
+
+To comply with SEBI algorithmic trading guidelines and handle broker-specific API behaviors/limitations of the Kotak Securities Neo SDK, the system enforces three critical risk middleware structures:
+
+### 15.1 Order Slicing for Quantity Freezes (`broker/order_manager.py`)
+- **Quantity Freeze Limits**: The Indian stock exchanges (NSE and BSE) enforce maximum quantity limits per order (e.g., 1800 shares for NIFTY, 1200 for BANKNIFTY) to prevent runaway orders.
+- **Order Slicing Engine**: When placing an order, `OrderManager` evaluates the total quantity against the contract specifications. If the quantity exceeds the freeze limit, it automatically slices the order into consecutive, exchange-compliant chunks (e.g., slicing a NIFTY order of 3000 shares into three orders of `[1170, 1170, 660]` assuming 1170 is the current freeze threshold in `nse_reference.py`).
+
+### 15.2 Broker Rate Limiting & Cooldowns
+- **Message-to-Order Ratio (MOR)**: Exchange-level rules penalize accounts with high modifications or cancels relative to executions.
+- **Modification Throttling**: The repricing loops inside `OrderManager` and modifications done via `PUT /api/orders/{order_id}` are governed by a minimum 2-second throttling cooldown to prevent hitting Kotak Neo API limits and avoid MOR penalties.
+
+### 15.3 Margin Peak & Execution Sequence
+- **Execution Sequencing (Entry)**: For multi-leg strategies (Straddles, Strangles, Iron Condors), order legs are executed sequentially to optimize margin requirements. Buy legs (Long options / Hedges) must be executed and confirmed filled *first*, followed by Sell legs (Short options / Writing) to ensure the broker's risk system acknowledges hedging benefits, avoiding order rejections due to insufficient margin.
+- **Execution Sequencing (Exit)**: During strategy `square_off()`, Sell/Short legs are exited *first* to release liabilities and margin, followed by Buy/Long legs (hedges) *second*. This avoids margin spikes and potential real-time margin penalty rejections on closure.
+
+### 15.4 Strategy Recovery Engine (`strategies/base_strategy.py`)
+- **Crash Recovery**: When the FastAPI server restarts, `_recover_strategy()` is executed inside the background daemon thread.
+- **State Restoration**:
+  - Compares local database records and active strategy configurations with live broker positions.
+  - Matches open legs by underlying symbol. If active open positions exist, it transitions the strategy state to `StrategyState.IN_TRADE` and reconstructs the memory leg representations.
+  - If no open positions are found but active orders exist, it transitions to `StrategyState.ENTERING` to avoid duplicate order loops. Otherwise, it resets to `StrategyState.IDLE`.
+
+---
+
+## 16. AI Agent Maintenance Guidelines
+
+When deploying automated scripts, creating scratch files, or modifying code as an agent, you must adhere to these structural boundaries:
+
+1. **Do Not Modify contract_specifications.md Manually**: Database contracts, ex-dividend calculations, and expiration date-shifting logic are managed dynamically. Changes to contract specifications or lot sizes must be processed by the synchronization services (`instruments/fetchers/`) to update `contracts.db` automatically.
+2. **OMS State Isolation**: The React dashboard uses a separate Zustand store (`useOMSStore`) for the OMS Simulator. This simulated state must remain completely isolated from `useTerminalStore` to prevent simulated orders from leaking into live trade signals or vice versa.
 

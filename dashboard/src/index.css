@@ -1,13 +1,37 @@
 @import "tailwindcss";
 
 @theme {
-  --color-finance-bg: #ffffff;
-  --color-finance-panel: #f8f9fa;
-  --color-finance-border: #cccccc;
-  --color-finance-text: #000000;
-  --color-finance-muted: #555555;
-  --color-finance-green: #008800;
-  --color-finance-red: #cc0000;
+  --color-finance-bg: var(--finance-bg);
+  --color-finance-panel: var(--finance-panel);
+  --color-finance-border: var(--finance-border);
+  --color-finance-text: var(--finance-text);
+  --color-finance-muted: var(--finance-muted);
+  --color-finance-green: var(--finance-green);
+  --color-finance-red: var(--finance-red);
+}
+
+:root {
+  --finance-bg: #ffffff;
+  --finance-panel: #f8f9fa;
+  --finance-border: #cccccc;
+  --finance-text: #000000;
+  --finance-muted: #555555;
+  --finance-green: #008800;
+  --finance-red: #cc0000;
+}
+
+.dark {
+  --finance-bg: #070b19;
+  --finance-panel: #0f172a;
+  --finance-border: #1e293b;
+  --finance-text: #f8fafc;
+  --finance-muted: #94a3b8;
+  --finance-green: #10b981;
+  --finance-red: #f43f5e;
+}
+
+.dark body {
+  font-family: 'Inter', 'Calibri', 'Arial', sans-serif;
 }
 
 @layer base {
@@ -64,11 +88,9 @@
   background-color: #f2f2f2;
 }
 
-/* AG-Grid Custom Light Theme Overrides for Terminal */
-.ag-theme-alpine-dark, .ag-theme-quartz-dark {
-  /* We'll override the 'dark' theme vars to be light, 
-     or we can just switch class names in the components. 
-     For now, redefining variables to force light mode without changing all classNames if missed. */
+/* AG-Grid Custom Light Theme Overrides (Excel Mode) */
+.ag-theme-alpine-dark, .ag-theme-quartz-dark,
+.ag-theme-alpine, .ag-theme-quartz {
   --ag-background-color: #ffffff;
   --ag-header-background-color: #f0f0f0;
   --ag-border-color: #cccccc;
@@ -82,6 +104,54 @@
   --ag-header-column-resize-handle-width: 4px;
   --ag-foreground-color: #000000;
   --ag-header-foreground-color: #333333;
+}
+
+/* AG-Grid Custom Dark Theme Overrides (Terminal Mode) */
+.dark .ag-theme-alpine,
+.dark .ag-theme-alpine-dark,
+.dark .ag-theme-quartz,
+.dark .ag-theme-quartz-dark {
+  --ag-background-color: #0f172a;
+  --ag-header-background-color: #1e293b;
+  --ag-border-color: #334155;
+  --ag-row-border-color: #1e293b;
+  --ag-header-column-separator-color: #334155;
+  --ag-cell-horizontal-border: solid #1e293b;
+  --ag-row-hover-color: #1e293b;
+  --ag-foreground-color: #f8fafc;
+  --ag-header-foreground-color: #cbd5e1;
+  --ag-odd-row-background-color: #0f172a;
+  --ag-selected-row-background-color: #1e293b;
+  --ag-font-family: 'Inter', 'Calibri', 'Arial', sans-serif;
+}
+
+/* Excel Table Dark Mode Styles */
+.dark .excel-table th, .dark .excel-table td {
+  border: 1px solid #1e293b;
+}
+
+.dark .excel-header {
+  background-color: #1e293b;
+  color: #cbd5e1;
+}
+
+.dark .excel-input {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+
+.dark .excel-positive {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.dark .excel-negative {
+  background-color: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+}
+
+.dark .excel-neutral-bg {
+  background-color: #0f172a;
 }
 
 /* Flash Animations for Ticks */

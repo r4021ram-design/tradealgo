@@ -238,5 +238,11 @@ export const useTerminalStore = create((set, get) => ({
       console.error('Failed to set paper trade status:', error);
       return false;
     }
-  }
+  },
+  theme: localStorage.getItem('app_theme') || 'light',
+  toggleTheme: () => set((state) => {
+    const newTheme = state.theme === 'light' ? 'dark' : 'light';
+    localStorage.setItem('app_theme', newTheme);
+    return { theme: newTheme };
+  })
 }));

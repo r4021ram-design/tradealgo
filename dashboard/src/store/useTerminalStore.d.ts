@@ -48,6 +48,8 @@ export interface TerminalStore {
   updateMarketWatchTick: (symbol: string, updates: any) => void;
   squareOff: (symbol: string) => void;
   executeStrategy: (name: string, legs: any[]) => Promise<any>;
+  theme: string;
+  toggleTheme: () => void;
 }
 
 export declare const useTerminalStore: UseBoundStore<StoreApi<TerminalStore>>;

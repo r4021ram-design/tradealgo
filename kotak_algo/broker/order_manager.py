@@ -79,6 +79,58 @@ class OrderManager:
         self._lock = threading.Lock()
         self._dedup = _DedupCache(cooldown_seconds=dedup_cooldown)
         self._validator = PreTradeValidator(logger=self.logger, paper_trade=self.paper_trade)
+        self._last_mod_times: dict[str, float] = {}
+
+    def _get_freeze_qty(self, trading_symbol: str) -> int | None:
+        """Fetch freeze quantity from SQLite contracts database with hardcoded fallback."""
+        from kotak_algo.instruments.data.db_utils import SessionLocal
+        from kotak_algo.instruments.models.contract_model import Contract
+        db = SessionLocal()
+        try:
+            # Clean symbol first (e.g. remove spaces)
+            clean_sym = trading_symbol.replace(" ", "").upper()
+            contract = db.query(Contract).filter(
+                (Contract.trading_symbol == clean_sym) | 
+                (Contract.trading_symbol == trading_symbol.upper())
+            ).first()
+            if contract and contract.freeze_qty:
+                return contract.freeze_qty
+        except Exception as e:
+            self.logger.warning("failed_to_fetch_freeze_qty", symbol=trading_symbol, error=str(e))
+        finally:
+            db.close()
+            
+        # Fallback based on underlying symbol prefix
+        upper_sym = trading_symbol.upper()
+        if "NIFTY" in upper_sym:
+            if "BANKNIFTY" in upper_sym:
+                return 1200
+            if "FINNIFTY" in upper_sym:
+                return 1800
+            if "MIDCPNIFTY" in upper_sym:
+                return 4200
+            return 1800
+        elif "SENSEX" in upper_sym:
+            return 1000
+        elif "BANKEX" in upper_sym:
+            return 1000
+        return None
+
+    def _slice_quantity(self, trading_symbol: str, total_quantity: int) -> list[int]:
+        """Slices a large order quantity into exchange-compliant blocks using freeze limits."""
+        freeze_limit = self._get_freeze_qty(trading_symbol)
+        if not freeze_limit or total_quantity <= freeze_limit:
+            return [total_quantity]
+            
+        slices = []
+        remaining = total_quantity
+        while remaining > 0:
+            current_slice = min(remaining, freeze_limit)
+            slices.append(current_slice)
+            remaining -= current_slice
+            
+        self.logger.info("order_sliced_by_freeze_limit", symbol=trading_symbol, total_quantity=total_quantity, freeze_limit=freeze_limit, slices=slices)
+        return slices
 
     def place_order(
         self,
@@ -92,35 +144,45 @@ class OrderManager:
         tag: str | None = None,
         exchange_segment: str = "nse_fo",
     ) -> str:
-        """Place an arbitrary/individual order with risk validation and pre-trade checks."""
+        """Place an arbitrary/individual order with risk validation, pre-trade checks, and order slicing."""
         txn_type = "B" if side.upper() in ("BUY", "B") else "S"
-
-        # Check duplicate guard
         formatted_price = self._format_price(float(price)) if price and price != "0" else None
-        self._dedup.check_and_record(trading_symbol, txn_type, quantity, formatted_price)
+        
+        quantities = self._slice_quantity(trading_symbol, quantity)
+        order_ids = []
+        
+        for idx, qty in enumerate(quantities):
+            # Check duplicate guard per slice
+            self._dedup.check_and_record(trading_symbol, txn_type, qty, formatted_price)
 
-        payload = {
-            "exchange_segment": exchange_segment,
-            "product": product,
-            "price": price,
-            "order_type": order_type,
-            "quantity": quantity,
-            "validity": "DAY",
-            "trading_symbol": trading_symbol,
-            "transaction_type": txn_type,
-            "amo": "NO",
-            "disclosed_quantity": "0",
-            "market_protection": "0",
-            "pf": "N",
-            "trigger_price": trigger_price,
-            "tag": tag,
-        }
+            payload = {
+                "exchange_segment": exchange_segment,
+                "product": product,
+                "price": price,
+                "order_type": order_type,
+                "quantity": qty,
+                "validity": "DAY",
+                "trading_symbol": trading_symbol,
+                "transaction_type": txn_type,
+                "amo": "NO",
+                "disclosed_quantity": "0",
+                "market_protection": "0",
+                "pf": "N",
+                "trigger_price": trigger_price,
+                "tag": tag,
+            }
 
-        paper_price_val = float(price) if price and price != "0" else None
-        # Submit the order
-        order = self._submit(payload, paper_price=paper_price_val)
-        self.logger.info("arbitrary_order_placed", trading_symbol=trading_symbol, txn_type=txn_type, order_id=order["order_id"])
-        return order["order_id"]
+            paper_price_val = float(price) if price and price != "0" else None
+            # Submit the order slice
+            order = self._submit(payload, paper_price=paper_price_val)
+            order_ids.append(order["order_id"])
+            
+            # 100ms cooldown to respect rate limits if we are submitting multiple slices
+            if len(quantities) > 1 and idx < len(quantities) - 1:
+                time.sleep(0.1)
+
+        self.logger.info("arbitrary_order_placed", trading_symbol=trading_symbol, txn_type=txn_type, order_ids=order_ids)
+        return ",".join(order_ids)
 
     # ── Entry Orders ─────────────────────────────────────────────
 
@@ -129,30 +191,39 @@ class OrderManager:
         mid_price = self.position_tracker.mid_price(leg["trading_symbol"])
         formatted_price = self._format_price(mid_price) if mid_price > 0 else None
 
-        # Duplicate guard
-        self._dedup.check_and_record(leg["trading_symbol"], transaction_type, quantity, formatted_price)
-
         if mid_price <= 0:
             raise ValueError(f"Cannot place entry without market data for {leg['trading_symbol']}")
 
-        payload = {
-            "exchange_segment": leg["exchange_segment"],
-            "product": leg["product"],
-            "price": self._format_price(mid_price),
-            "order_type": "L",
-            "quantity": quantity,
-            "validity": "DAY",
-            "trading_symbol": leg["trading_symbol"],
-            "transaction_type": transaction_type,
-            "amo": "NO",
-            "disclosed_quantity": "0",
-            "market_protection": "0",
-            "pf": "N",
-            "trigger_price": "0",
-            "tag": leg.get("tag"),
-        }
-        order = self._submit_with_reprice(payload, leg=leg)
-        return order
+        quantities = self._slice_quantity(leg["trading_symbol"], quantity)
+        order = None
+        
+        for idx, qty in enumerate(quantities):
+            # Duplicate guard per slice
+            self._dedup.check_and_record(leg["trading_symbol"], transaction_type, qty, formatted_price)
+
+            payload = {
+                "exchange_segment": leg["exchange_segment"],
+                "product": leg["product"],
+                "price": self._format_price(mid_price),
+                "order_type": "L",
+                "quantity": qty,
+                "validity": "DAY",
+                "trading_symbol": leg["trading_symbol"],
+                "transaction_type": transaction_type,
+                "amo": "NO",
+                "disclosed_quantity": "0",
+                "market_protection": "0",
+                "pf": "N",
+                "trigger_price": "0",
+                "tag": leg.get("tag"),
+            }
+            order = self._submit_with_reprice(payload, leg=leg)
+            
+            # 100ms cooldown to respect rate limits if we are submitting multiple slices
+            if len(quantities) > 1 and idx < len(quantities) - 1:
+                time.sleep(0.1)
+                
+        return order  # type: ignore
 
     # ── Stop Loss Orders ─────────────────────────────────────────
 
@@ -193,54 +264,68 @@ class OrderManager:
         # If the position is LONG, we exit by SELLING ("S"). If SHORT, we exit by BUYING ("B").
         side = leg.get("side", "SHORT")
         txn_type = "S" if side == "LONG" else "B"
-        payload = {
-            "exchange_segment": leg["exchange_segment"],
-            "product": leg["product"],
-            "price": "0",
-            "order_type": "MKT",
-            "quantity": quantity,
-            "validity": "DAY",
-            "trading_symbol": leg["trading_symbol"],
-            "transaction_type": txn_type,
-            "amo": "NO",
-            "disclosed_quantity": "0",
-            "market_protection": "0",
-            "pf": "N",
-            "trigger_price": "0",
-            "tag": f"{leg.get('tag', leg['trading_symbol'])}-exit",
-        }
 
+        quantities = self._slice_quantity(leg["trading_symbol"], quantity)
         last_exc = None
-        for attempt in range(1, 4):  # 3 retries on exit failures
-            try:
-                order = self._submit(payload)
-                self.logger.info("market_exit_placed", trading_symbol=leg["trading_symbol"], reason=reason, order_id=order["order_id"])
-                self.notifier.send(f"Exit order placed for {leg['trading_symbol']} due to {reason}")
-                return order
-            except Exception as exc:
-                last_exc = exc
-                self.logger.error(
-                    "market_exit_failed",
-                    trading_symbol=leg["trading_symbol"],
-                    reason=reason,
-                    attempt=attempt,
-                    error=str(exc),
-                )
-                if attempt < 3:
-                    time.sleep(2)
+        order = None
 
-        # All retries failed — critical alert
-        self.notifier.send(
-            f"🚨 CRITICAL: Exit order FAILED 3x for {leg['trading_symbol']}! "
-            f"Reason: {reason}. Error: {last_exc}. MANUAL INTERVENTION REQUIRED."
-        )
-        event_bus.publish(Event(EventNames.CRITICAL_ERROR, {
-            "type": "exit_order_failed",
-            "symbol": leg["trading_symbol"],
-            "reason": reason,
-            "error": str(last_exc),
-        }))
-        raise last_exc  # type: ignore[misc]
+        for idx, qty in enumerate(quantities):
+            payload = {
+                "exchange_segment": leg["exchange_segment"],
+                "product": leg["product"],
+                "price": "0",
+                "order_type": "MKT",
+                "quantity": qty,
+                "validity": "DAY",
+                "trading_symbol": leg["trading_symbol"],
+                "transaction_type": txn_type,
+                "amo": "NO",
+                "disclosed_quantity": "0",
+                "market_protection": "0",
+                "pf": "N",
+                "trigger_price": "0",
+                "tag": f"{leg.get('tag', leg['trading_symbol'])}-exit",
+            }
+
+            filled = False
+            for attempt in range(1, 4):  # 3 retries on exit failures
+                try:
+                    order = self._submit(payload)
+                    self.logger.info("market_exit_placed", trading_symbol=leg["trading_symbol"], reason=reason, order_id=order["order_id"], quantity=qty)
+                    self.notifier.send(f"Exit order placed for {leg['trading_symbol']} x{qty} due to {reason}")
+                    filled = True
+                    break
+                except Exception as exc:
+                    last_exc = exc
+                    self.logger.error(
+                        "market_exit_failed",
+                        trading_symbol=leg["trading_symbol"],
+                        reason=reason,
+                        attempt=attempt,
+                        error=str(exc),
+                    )
+                    if attempt < 3:
+                        time.sleep(2)
+
+            if not filled:
+                # All retries failed — critical alert
+                self.notifier.send(
+                    f"🚨 CRITICAL: Exit order FAILED 3x for {leg['trading_symbol']} slice x{qty}! "
+                    f"Reason: {reason}. Error: {last_exc}. MANUAL INTERVENTION REQUIRED."
+                )
+                event_bus.publish(Event(EventNames.CRITICAL_ERROR, {
+                    "type": "exit_order_failed",
+                    "symbol": leg["trading_symbol"],
+                    "reason": reason,
+                    "error": str(last_exc),
+                }))
+                raise last_exc  # type: ignore[misc]
+
+            # 100ms cooldown to respect rate limits if we are submitting multiple slices
+            if len(quantities) > 1 and idx < len(quantities) - 1:
+                time.sleep(0.1)
+
+        return order  # type: ignore
 
     # ── Cancel ───────────────────────────────────────────────────
 
@@ -262,8 +347,60 @@ class OrderManager:
             self.logger.error("order_cancel_failed", order_id=order_id, error=str(exc))
             raise
 
+    def confirm_fill(self, order_id: str, timeout: float = 15.0, poll_interval: float = 0.2) -> dict[str, Any]:
+        """Poll the broker until the order is filled, or timeout occurs."""
+        start_time = time.monotonic()
+        while time.monotonic() - start_time < timeout:
+            with self._lock:
+                order = self.pending_orders.get(order_id)
+            
+            if order and order.get("status") == "filled":
+                return order
+
+            if self.paper_trade:
+                # In paper trade, if order is found, mark it filled immediately to prevent hanging
+                if order:
+                    with self._lock:
+                        order["status"] = "filled"
+                        if not order.get("fill_price"):
+                            order["fill_price"] = float(order.get("price") or 100.0)
+                    self.position_tracker.record_fill(order, fill_price=order["fill_price"])
+                    return order
+            else:
+                try:
+                    history = self.broker.order_history(order_id=order_id)
+                    if self._is_filled(history):
+                        fill_price = self._extract_fill_price(history, fallback=0.0)
+                        with self._lock:
+                            if order:
+                                order["status"] = "filled"
+                                order["fill_price"] = fill_price
+                        self.position_tracker.record_fill(order or {"order_id": order_id}, fill_price=fill_price)
+                        return order or {"order_id": order_id, "status": "filled", "fill_price": fill_price}
+                except Exception as e:
+                    self.logger.warning("confirm_fill_poll_failed", order_id=order_id, error=str(e))
+
+            time.sleep(poll_interval)
+
+        raise TimeoutError(f"Order {order_id} not filled within {timeout}s")
+
     def modify_order(self, order_id: str, new_price: float, new_quantity: int) -> dict[str, Any]:
-        """Modify price and quantity for a pending order."""
+        """Modify price and quantity for a pending order, enforcing a 2-second rate-limiting cooldown."""
+        # Enforce rate-limiting cooldown per order_id
+        wait_time = 0.0
+        with self._lock:
+            last_time = self._last_mod_times.get(order_id, 0.0)
+            now = time.monotonic()
+            if now - last_time < 2.0:
+                wait_time = 2.0 - (now - last_time)
+                
+        if wait_time > 0.0:
+            self.logger.info("throttting_order_modification", order_id=order_id, wait_seconds=round(wait_time, 2))
+            time.sleep(wait_time)
+            
+        with self._lock:
+            self._last_mod_times[order_id] = time.monotonic()
+
         if self.paper_trade:
             with self._lock:
                 order = self.pending_orders.get(order_id)
@@ -504,8 +641,13 @@ class OrderManager:
         return "complete" in history_text or "filled" in history_text or "traded" in history_text
 
     @staticmethod
-    def _extract_fill_price(history: Any, fallback: float) -> float:
-        if isinstance(history, dict):
+    def _extract_fill_price(history: Any, fallback: float | None) -> float | None:
+        if isinstance(history, list):
+            for item in history:
+                val = OrderManager._extract_fill_price(item, fallback=None)
+                if val is not None:
+                    return val
+        elif isinstance(history, dict):
             for key in ("avgPrc", "avg_price", "price"):
                 value = history.get(key)
                 if value is not None:
@@ -516,7 +658,7 @@ class OrderManager:
                         nested_value = value.get(nested_key)
                         if nested_value is not None:
                             return float(nested_value)
-        return float(fallback)
+        return fallback if fallback is None else float(fallback)
 
     @staticmethod
     def _format_price(price: float) -> str:
