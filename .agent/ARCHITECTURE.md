@@ -56,7 +56,10 @@ kotakalgo/
 │   │   ├── greeks_engine.py         # Black-Scholes Greeks calculator
 │   │   ├── strike_selector.py       # ATM/OTM strike selection logic
 │   │   ├── scheduler.py             # Time-based scheduling (entry/exit)
-│   │   └── nse_reference.py         # NSE reference data (lot sizes, qty freeze)
+│   │   ├── nse_reference.py         # NSE reference data (lot sizes, qty freeze)
+│   │   ├── backtest_sandbox.py      # Localized historical backtesting simulation sandbox engine
+│   │   └── telemetry.py             # Local telemetry/audit logger
+
 │   │
 │   ├── strategies/                  # Trading strategy implementations
 │   │   ├── base_strategy.py         # Abstract base (state machine: IDLE→ENTERING→IN_TRADE→EXITING→DONE)
@@ -123,10 +126,10 @@ kotakalgo/
 │   │   │   │   ├── OrderModal.jsx       # Buy/Sell order entry modal
 │   │   │   │   └── OrdersGrid.jsx       # Custom orders grid
 │   │   │   │
-│   │   │   ├── option-chain/        # Option chain panel (built, available)
-│   │   │   │   ├── OptionChainPanel.jsx
-│   │   │   │   ├── OptionChainRow.jsx
-│   │   │   │   └── OptionChainHeader.jsx
+│   │   │   ├── option-chain/        # Option chain panel
+│   │   │   │   ├── OptionChain.jsx  # Main option chain layout with mirrored columns and Greeks
+│   │   │   │   └── OptionChain.css  # Option chain spreadsheet styles
+
 │   │   │   │
 │   │   │   ├── strategy/
 │   │   │   │   └── StrategyBuilder.jsx  # Multi-leg strategy builder with payoff chart
@@ -224,6 +227,7 @@ kotakalgo/
 │    GET  /api/config/paper-trade    → Get paper trading status       │
 │    POST /api/config/paper-trade    → Toggle & persist paper trade   │
 │    GET  /api/contracts/details     → Detailed contract specs        │
+│    POST /api/backtest              → Trigger sandbox backtest run   │
 │    WS   /ws/live-feed              → Real-time tick broadcast       │
 └─────────────────────────────┬───────────────────────────────────────┘
                               │
@@ -697,12 +701,33 @@ To comply with SEBI algorithmic trading guidelines and handle broker-specific AP
   - Matches open legs by underlying symbol. If active open positions exist, it transitions the strategy state to `StrategyState.IN_TRADE` and reconstructs the memory leg representations.
   - If no open positions are found but active orders exist, it transitions to `StrategyState.ENTERING` to avoid duplicate order loops. Otherwise, it resets to `StrategyState.IDLE`.
 
+## 16. Localized Historical Backtesting Sandbox Module
+
+The localized historical simulation sandbox module allows developers to dry-run and backtest options trading strategies, adjustments, stop losses, and rebalancing loops over historical 1-minute spot tick bars without live market or broker dependencies.
+
+### 16.1 Sandbox Components
+- **Simulation Engine (`kotak_algo/core/backtest_sandbox.py`)**: Uses sqlite3 to fetch 1-minute historical spot ticks from the `historical_ticks` table in `contracts.db` (automatically generates synthetic ticks if empty). It drives a step-by-step loop simulating spot price, option pricing via the Black-Scholes engine, order submission/execution, stop losses, adjustments, and rebalancing.
+- **Order Manager Simulation**: Simulates order placement, status updates, and fills locally via paper-trading flags immediately.
+- **Greeks & Pricing simulation**: Recalculates exact Black-Scholes option prices and Greeks dynamically based on simulated spot values and remaining fractional time-to-expiry (DTE).
+- **FastAPI Sandbox Controller (`api.py`)**: Exposes `POST /api/backtest` to allow the React dashboard to trigger and display sandbox simulation reports (P&L, execution events, orders).
+
+### 16.2 Executing Sandbox Tests
+Run unit tests for the backtest sandbox via:
+```bash
+python -m unittest scratch/test_backtest_sandbox.py
+```
+Or run the simulation runner script:
+```bash
+python scratch/run_backtest_sandbox.py
+```
+
 ---
 
-## 16. AI Agent Maintenance Guidelines
+## 17. AI Agent Maintenance Guidelines
 
 When deploying automated scripts, creating scratch files, or modifying code as an agent, you must adhere to these structural boundaries:
 
 1. **Do Not Modify contract_specifications.md Manually**: Database contracts, ex-dividend calculations, and expiration date-shifting logic are managed dynamically. Changes to contract specifications or lot sizes must be processed by the synchronization services (`instruments/fetchers/`) to update `contracts.db` automatically.
 2. **OMS State Isolation**: The React dashboard uses a separate Zustand store (`useOMSStore`) for the OMS Simulator. This simulated state must remain completely isolated from `useTerminalStore` to prevent simulated orders from leaking into live trade signals or vice versa.
+
 
