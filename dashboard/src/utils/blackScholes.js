@@ -72,7 +72,7 @@ export function calculateBlackScholes(type, S, K, T, r, v, q = 0) {
     price = K * Math.exp(-r * T) * CND(-d2) - S * Math.exp(-q * T) * CND(-d1);
     delta = Math.exp(-q * T) * (CND(d1) - 1);
     theta = (-(S * vol * ND(d1) * Math.exp(-q * T)) / (2 * Math.sqrt(T)) 
-             + r * K * Math.exp(-r * T) * CND(-d2) 
+             - r * K * Math.exp(-r * T) * CND(-d2) 
              - q * S * Math.exp(-q * T) * CND(-d1));
     rho = -K * T * Math.exp(-r * T) * CND(-d2);
   }

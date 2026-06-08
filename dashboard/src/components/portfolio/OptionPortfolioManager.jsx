@@ -221,6 +221,23 @@ export const OptionPortfolioManager = () => {
     return data;
   }, [filteredLegs, underlyingPrice, simDate, ivShifts, interestRate, dividendYield]);
 
+  // Calculate Breakeven points dynamically from chartData
+  const breakevens = useMemo(() => {
+    if (chartData.length < 2) return [];
+    const points = [];
+    for (let i = 0; i < chartData.length - 1; i++) {
+      const p1 = chartData[i];
+      const p2 = chartData[i + 1];
+      if ((p1.pnl_expiry <= 0 && p2.pnl_expiry > 0) || (p1.pnl_expiry >= 0 && p2.pnl_expiry < 0)) {
+        // Linear interpolation to find the exact spot price where payoff is zero
+        const t = -p1.pnl_expiry / (p2.pnl_expiry - p1.pnl_expiry);
+        const beSpot = p1.spot + t * (p2.spot - p1.spot);
+        points.push(beSpot);
+      }
+    }
+    return points;
+  }, [chartData]);
+
   // Aggregate Greeks calculation across manual legs & live positions
   const aggregateGreeks = useMemo(() => {
     let delta = 0, gamma = 0, theta = 0, vega = 0, realizedPnl = 0, openPnl = 0, netPremium = 0;
@@ -321,6 +338,23 @@ export const OptionPortfolioManager = () => {
               <ReferenceLine y={0} stroke={theme === 'dark' ? '#475569' : '#000'} />
               <ReferenceLine x={underlyingPrice} stroke={theme === 'dark' ? '#f59e0b' : '#ff9900'} strokeDasharray="3 3" label={{ value: `Spot: ${Math.round(underlyingPrice)}`, position: 'top', fill: theme === 'dark' ? '#f59e0b' : '#ff9900', fontSize: 10, fontWeight: 'bold' }} />
               
+              {/* Highlight Breakeven Points as red dotted reference lines */}
+              {breakevens.map((be, idx) => (
+                <ReferenceLine
+                  key={`be-${idx}`}
+                  x={be}
+                  stroke={theme === 'dark' ? '#f43f5e' : '#cc0000'}
+                  strokeDasharray="3 3"
+                  label={{
+                    value: `BE: ${Math.round(be)}`,
+                    position: 'bottom',
+                    fill: theme === 'dark' ? '#f43f5e' : '#cc0000',
+                    fontSize: 9,
+                    fontWeight: 'bold',
+                  }}
+                />
+              ))}
+
               {/* Expiry Payoff Curve (peaked dashed line, similar to Kotak Securities OneTouch) */}
               <Line type="monotone" dataKey="pnl_expiry" stroke={theme === 'dark' ? '#64748b' : '#7f7f7f'} strokeWidth={2} strokeDasharray="4 4" name="At Expiry" dot={false} isAnimationActive={false} />
               

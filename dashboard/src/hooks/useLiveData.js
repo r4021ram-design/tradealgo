@@ -37,7 +37,9 @@ export function useLiveData() {
           const symbolData = marketDataMap.get(symbol) || {};
           const ltp = symbolData.ltp || leg.entry_price || 0;
           const delta = symbolData.delta || 0;
+          const gamma = symbolData.gamma || 0;
           const theta = symbolData.theta || 0;
+          const vega = symbolData.vega || 0;
           const expiry = symbolData.expiry || null;
           const dte = symbolData.dte !== undefined ? symbolData.dte : null;
           const iv = symbolData.iv || null;
@@ -59,7 +61,9 @@ export function useLiveData() {
             ltp,
             realizedPnl: leg.realized_pnl || 0,
             delta,
+            gamma,
             theta,
+            vega,
             status: leg.status || 'CLOSED',
             expiry,
             dte,

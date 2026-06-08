@@ -251,6 +251,10 @@ class OptionChainRequest(BaseModel):
     strike_range: int = 20
 
 
+class BacktestRequest(BaseModel):
+    date: str = "2026-06-08"
+
+
 @app.get("/health")
 async def health_check():
     """Simple health check for load balancers."""
@@ -1025,6 +1029,40 @@ async def square_off_all(app: AlgoApp = Depends(get_algo_app_or_404)):
 
     res = await asyncio.to_thread(_do_square_off)
     return {"message": "Square off initiated", "details": res}
+
+@app.get("/api/telemetry")
+async def get_telemetry(limit: int = 100, app: AlgoApp = Depends(get_algo_app_or_404)):
+    try:
+        events = await asyncio.to_thread(app.telemetry_manager.get_events, limit)
+        return {"events": events}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/api/kill-switch")
+async def trigger_kill_switch(app: AlgoApp = Depends(get_algo_app_or_404)):
+    try:
+        def _do_kill():
+            app.risk_manager.activate_kill_switch(app.order_manager, reason="api_post_request")
+        await asyncio.to_thread(_do_kill)
+        return {"status": "Kill Switch Activated"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/backtest")
+async def run_backtest(payload: BacktestRequest, app: AlgoApp = Depends(get_algo_app_or_404)):
+    try:
+        from kotak_algo.core.backtest_sandbox import BacktestSandbox
+        sandbox = BacktestSandbox()
+        
+        def _do_backtest():
+            return sandbox.run_simulation(date_str=payload.date)
+            
+        report = await asyncio.to_thread(_do_backtest)
+        return report
+    except Exception as e:
+        return {"error": str(e)}
+
 
 @app.post("/api/reconciliation/upload")
 async def upload_contract_note(file: UploadFile = File(...), password: str = Form("")):

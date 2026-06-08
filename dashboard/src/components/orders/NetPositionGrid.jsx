@@ -132,12 +132,35 @@ export const NetPositionGrid = () => {
       aggFunc: 'sum'
     },
     {
+      headerName: 'Net Gamma',
+      width: 100,
+      type: 'numericColumn',
+      valueGetter: params => {
+        if (!params.data || !params.data.gamma || params.data.netQty === 0) return null;
+        return params.data.gamma * params.data.netQty;
+      },
+      valueFormatter: p => p.value ? p.value.toFixed(4) : '-',
+      aggFunc: 'sum'
+    },
+    {
       headerName: 'Net Theta (₹)',
       width: 100,
       type: 'numericColumn',
       valueGetter: params => {
         if (!params.data || !params.data.theta || params.data.netQty === 0) return null;
         return params.data.theta * params.data.netQty;
+      },
+      valueFormatter: p => p.value ? p.value.toFixed(2) : '-',
+      cellStyle: params => ({ color: params.value < 0 ? redColor : params.value > 0 ? greenColor : neutralColor }),
+      aggFunc: 'sum'
+    },
+    {
+      headerName: 'Net Vega (₹)',
+      width: 100,
+      type: 'numericColumn',
+      valueGetter: params => {
+        if (!params.data || !params.data.vega || params.data.netQty === 0) return null;
+        return params.data.vega * params.data.netQty;
       },
       valueFormatter: p => p.value ? p.value.toFixed(2) : '-',
       cellStyle: params => ({ color: params.value < 0 ? redColor : params.value > 0 ? greenColor : neutralColor }),

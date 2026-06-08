@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { useTerminalStore } from '../../store/useTerminalStore';
 import { useOptionChainData } from '../../hooks/useOptionChainData';
-import { calculateIVAndGreeks } from '../../utils/blackScholes';
+import { calculateIVAndGreeks, impliedVolatility, calculateBlackScholes } from '../../utils/blackScholes';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import './OptionChain.css';
 
@@ -40,12 +40,12 @@ const getLotSize = (symbol) => {
   return 1;
 };
 
-// CE sub-columns: OI Chg | OI | Vol | IV | Δ | Γ | θ | ν | BidQ | Bid | Ask | AskQ | LTP | Chg%
-const CE_COLS = ['oiChange', 'oi', 'volume', 'iv', 'delta', 'gamma', 'theta', 'vega', 'bidQty', 'bidPrice', 'askPrice', 'askQty', 'ltp', 'changePct'];
-const CE_LABELS = ['OI Chg', 'OI', 'Vol', 'IV', 'Δ (₹)', 'Γ (₹)', 'θ (₹)', 'ν (₹)', 'Bid Q', 'Bid', 'Ask', 'Ask Q', 'LTP', 'Chg%'];
-// PE sub-columns mirror: Chg% | LTP | BidQ | Bid | Ask | AskQ | ν | θ | Γ | Δ | IV | Vol | OI | OI Chg
-const PE_COLS = ['changePct', 'ltp', 'bidQty', 'bidPrice', 'askPrice', 'askQty', 'vega', 'theta', 'gamma', 'delta', 'iv', 'volume', 'oi', 'oiChange'];
-const PE_LABELS = ['Chg%', 'LTP', 'Bid Q', 'Bid', 'Ask', 'Ask Q', 'ν (₹)', 'θ (₹)', 'Γ (₹)', 'Δ (₹)', 'IV', 'Vol', 'OI', 'OI Chg'];
+// CE sub-columns: OI Chg | OI | Vol | IV | Δ | θ | ν | LTP | Chg% | Bid Q | Bid | Ask | Ask Q
+const CE_COLS = ['oiChange', 'oi', 'volume', 'iv', 'delta', 'theta', 'vega', 'ltp', 'changePct', 'bidQty', 'bidPrice', 'askPrice', 'askQty'];
+const CE_LABELS = ['OI Chg', 'OI', 'Vol', 'IV', 'Δ', 'θ', 'ν', 'LTP', 'Chg%', 'Bid Q', 'Bid', 'Ask', 'Ask Q'];
+// PE sub-columns mirror: Ask Q | Ask | Bid | Bid Q | Chg% | LTP | ν | θ | Δ | IV | Vol | OI | OI Chg
+const PE_COLS = ['askQty', 'askPrice', 'bidPrice', 'bidQty', 'changePct', 'ltp', 'vega', 'theta', 'delta', 'iv', 'volume', 'oi', 'oiChange'];
+const PE_LABELS = ['Ask Q', 'Ask', 'Bid', 'Bid Q', 'Chg%', 'LTP', 'ν', 'θ', 'Δ', 'IV', 'Vol', 'OI', 'OI Chg'];
 
 function CellValue({ col, data, side }) {
   const val = data[col];
@@ -124,7 +124,7 @@ export const OptionChain = () => {
   const [showFullChain, setShowFullChain] = useState(false);
 
   // Greeks columns to toggle
-  const greeksCols = ['iv', 'delta', 'gamma', 'theta', 'vega'];
+  const greeksCols = ['iv', 'delta', 'theta', 'vega'];
   
   const activeCeCols = useMemo(() => showGreeks ? CE_COLS : CE_COLS.filter(c => !greeksCols.includes(c)), [showGreeks]);
   const activeCeLabels = useMemo(() => showGreeks ? CE_LABELS : CE_LABELS.filter((_, i) => !greeksCols.includes(CE_COLS[i])), [showGreeks]);
@@ -225,32 +225,70 @@ export const OptionChain = () => {
       if (!row) return row;
       let ce = row.ce ? { ...defaultSideData, ...row.ce } : { ...defaultSideData };
       let pe = row.pe ? { ...defaultSideData, ...row.pe } : { ...defaultSideData };
-      let changed = false;
-
-      // Use mid-price for IV calculation (matches NSE methodology)
-      const ceMid = (ce.bidPrice > 0 && ce.askPrice > 0) ? (ce.bidPrice + ce.askPrice) / 2 : ce.ltp;
-      const peMid = (pe.bidPrice > 0 && pe.askPrice > 0) ? (pe.bidPrice + pe.askPrice) / 2 : pe.ltp;
 
       if (!spotPrice || !showGreeks) {
         return { ...row, ce, pe };
       }
 
-      // If CE has price but IV is 0 → compute client-side
-      if (ceMid > 0 && (!ce.iv || ce.iv === 0)) {
-        const g = calculateIVAndGreeks('CE', spotPrice, row.strike, ceMid, daysToExpiry);
-        if (g.iv > 0) {
-          ce = { ...ce, iv: g.iv, delta: g.delta, gamma: g.gamma, theta: g.theta, vega: g.vega };
-          changed = true;
+      const ceMid = (ce.bidPrice > 0 && ce.askPrice > 0) ? (ce.bidPrice + ce.askPrice) / 2 : ce.ltp;
+      const peMid = (pe.bidPrice > 0 && pe.askPrice > 0) ? (pe.bidPrice + pe.askPrice) / 2 : pe.ltp;
+
+      const T = daysToExpiry / 365.25;
+
+      // 1. Resolve IVs for CE and PE using OTM mirroring logic for deep ITM options
+      let ceIV = ce.iv ? ce.iv / 100 : 0;
+      let peIV = pe.iv ? pe.iv / 100 : 0;
+
+      if (row.strike < spotPrice) {
+        // CE is ITM, PE is OTM. Calculate PE first (stable OTM side)
+        if (peMid > 0 && peIV === 0) {
+          peIV = impliedVolatility('PE', spotPrice, row.strike, T, 0.0525, peMid);
+        }
+        // Mirror PE IV to CE IV
+        if (peIV > 0.001) {
+          ceIV = peIV;
+        }
+      } else {
+        // CE is OTM, PE is ITM. Calculate CE first (stable OTM side)
+        if (ceMid > 0 && ceIV === 0) {
+          ceIV = impliedVolatility('CE', spotPrice, row.strike, T, 0.0525, ceMid);
+        }
+        // Mirror CE IV to PE IV
+        if (ceIV > 0.001) {
+          peIV = ceIV;
         }
       }
 
-      // If PE has price but IV is 0 → compute client-side
-      if (peMid > 0 && (!pe.iv || pe.iv === 0)) {
-        const g = calculateIVAndGreeks('PE', spotPrice, row.strike, peMid, daysToExpiry);
-        if (g.iv > 0) {
-          pe = { ...pe, iv: g.iv, delta: g.delta, gamma: g.gamma, theta: g.theta, vega: g.vega };
-          changed = true;
-        }
+      // Direct calculation fallback if mirroring did not resolve
+      if (ceMid > 0 && ceIV === 0) {
+        ceIV = impliedVolatility('CE', spotPrice, row.strike, T, 0.0525, ceMid);
+      }
+      if (peMid > 0 && peIV === 0) {
+        peIV = impliedVolatility('PE', spotPrice, row.strike, T, 0.0525, peMid);
+      }
+
+      // 2. Compute Greeks using the resolved implied volatilities
+      if (ceIV > 0.001) {
+        const g = calculateBlackScholes('CE', spotPrice, row.strike, T, 0.0525, ceIV);
+        ce = {
+          ...ce,
+          iv: +(ceIV * 100).toFixed(2),
+          delta: +g.delta.toFixed(4),
+          gamma: +g.gamma.toFixed(6),
+          theta: +g.theta.toFixed(2),
+          vega: +g.vega.toFixed(2)
+        };
+      }
+      if (peIV > 0.001) {
+        const g = calculateBlackScholes('PE', spotPrice, row.strike, T, 0.0525, peIV);
+        pe = {
+          ...pe,
+          iv: +(peIV * 100).toFixed(2),
+          delta: +g.delta.toFixed(4),
+          gamma: +g.gamma.toFixed(6),
+          theta: +g.theta.toFixed(2),
+          vega: +g.vega.toFixed(2)
+        };
       }
 
       return { ...row, ce, pe };
@@ -469,7 +507,7 @@ export const OptionChain = () => {
                         (col === 'changePct' ? (' oc-chg ' + (row.ce.changePct > 0 ? 'oc-green' : row.ce.changePct < 0 ? 'oc-red' : 'oc-muted')) : '') +
                         (col === 'oiChange' ? (row.ce.oiChange > 0 ? ' oc-oi-pos' : row.ce.oiChange < 0 ? ' oc-oi-neg' : '') : '') +
                         (col === 'theta' ? (row.ce.theta < 0 ? ' oc-red' : ' oc-green') : '') +
-                        (['iv', 'delta', 'gamma', 'theta', 'vega'].includes(col) ? ' oc-greek' : '') +
+                        (['iv', 'delta', 'theta', 'vega'].includes(col) ? ' oc-greek' : '') +
                         (isMaxOi ? ' oc-highlight-ce' : '') +
                         (isMaxOiChg ? ' oc-highlight-ce-subtle' : '') +
                         (isMaxVol ? ' oc-highlight-vol' : '') +
@@ -493,10 +531,9 @@ export const OptionChain = () => {
                        col === 'oiChange' ? ((row.ce.oiChange > 0 ? '+' : '') + fmtOI(row.ce.oiChange)) :
                        col === 'volume' ? fmtVol(row.ce.volume) :
                        col === 'iv' ? fmtNum(row.ce.iv, 2) + '%' :
-                       col === 'delta' ? fmtNum(row.ce.delta * lotSize, 2) :
-                       col === 'gamma' ? fmtNum(row.ce.gamma * lotSize, 4) :
-                       col === 'theta' ? fmtNum(row.ce.theta * lotSize, 2) :
-                       col === 'vega' ? fmtNum(row.ce.vega * lotSize, 2) :
+                       col === 'delta' ? fmtNum(row.ce.delta, 4) :
+                       col === 'theta' ? fmtNum(row.ce.theta, 2) :
+                       col === 'vega' ? fmtNum(row.ce.vega, 2) :
                        col === 'changePct' ? ((row.ce.changePct > 0 ? '+' : '') + fmtNum(row.ce.changePct, 2) + '%') :
                        col === 'bidQty' || col === 'askQty' ? (row.ce[col]?.toLocaleString() || '-') :
                        '-'}
@@ -521,7 +558,7 @@ export const OptionChain = () => {
                         (col === 'changePct' ? (' oc-chg ' + (row.pe.changePct > 0 ? 'oc-green' : row.pe.changePct < 0 ? 'oc-red' : 'oc-muted')) : '') +
                         (col === 'oiChange' ? (row.pe.oiChange > 0 ? ' oc-oi-pos' : row.pe.oiChange < 0 ? ' oc-oi-neg' : '') : '') +
                         (col === 'theta' ? (row.pe.theta < 0 ? ' oc-red' : ' oc-green') : '') +
-                        (['iv', 'delta', 'gamma', 'theta', 'vega'].includes(col) ? ' oc-greek' : '') +
+                        (['iv', 'delta', 'theta', 'vega'].includes(col) ? ' oc-greek' : '') +
                         (isMaxOi ? ' oc-highlight-pe' : '') +
                         (isMaxOiChg ? ' oc-highlight-pe-subtle' : '') +
                         (isMaxVol ? ' oc-highlight-vol' : '') +
@@ -545,10 +582,9 @@ export const OptionChain = () => {
                        col === 'oiChange' ? ((row.pe.oiChange > 0 ? '+' : '') + fmtOI(row.pe.oiChange)) :
                        col === 'volume' ? fmtVol(row.pe.volume) :
                        col === 'iv' ? fmtNum(row.pe.iv, 2) + '%' :
-                       col === 'delta' ? fmtNum(row.pe.delta * lotSize, 2) :
-                       col === 'gamma' ? fmtNum(row.pe.gamma * lotSize, 4) :
-                       col === 'theta' ? fmtNum(row.pe.theta * lotSize, 2) :
-                       col === 'vega' ? fmtNum(row.pe.vega * lotSize, 2) :
+                       col === 'delta' ? fmtNum(row.pe.delta, 4) :
+                       col === 'theta' ? fmtNum(row.pe.theta, 2) :
+                       col === 'vega' ? fmtNum(row.pe.vega, 2) :
                        col === 'changePct' ? ((row.pe.changePct > 0 ? '+' : '') + fmtNum(row.pe.changePct, 2) + '%') :
                        col === 'bidQty' || col === 'askQty' ? (row.pe[col]?.toLocaleString() || '-') :
                        '-'}

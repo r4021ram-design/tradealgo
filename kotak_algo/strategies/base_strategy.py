@@ -27,6 +27,7 @@ class BaseStrategy(ABC):
         position_tracker,
         risk_manager,
         notifier,
+        telemetry_manager=None,
         logger=None,
     ) -> None:
         self.name = name
@@ -37,12 +38,14 @@ class BaseStrategy(ABC):
         self.position_tracker = position_tracker
         self.risk_manager = risk_manager
         self.notifier = notifier
+        self.telemetry_manager = telemetry_manager
         self.logger = (logger or get_logger(name)).bind(component=name)
         
         self._state = StrategyState.IDLE
         self._lock = threading.RLock()
         self.entered_slots: set[str] = set()
         self.legs: list[dict[str, Any]] = []
+        self.websocket = None
 
     @property
     def state(self) -> StrategyState:
@@ -147,7 +150,10 @@ class BaseStrategy(ABC):
                     leg["sl_order_id"] = sl_order["order_id"]
                     self.position_tracker.update_leg_metadata(leg["trading_symbol"], sl_order_id=sl_order["order_id"])
 
-                self.position_tracker.set_strategy_net_premium(self.name, net_premium)
+                self.position_tracker.set_strategy_net_premium(
+                    self.name,
+                    net_premium * int(self.config.get("lot_size", 1)) * int(self.config.get("lots", 1))
+                )
                 self.risk_manager.register_strategy_open(self.name)
                 self.entered_slots.add(slot)
                 self._state = StrategyState.IN_TRADE
@@ -203,6 +209,10 @@ class BaseStrategy(ABC):
                 self.order_manager.cancel_order(leg["entry_order_id"])
             if leg.get("sl_order_id"):
                 self.order_manager.cancel_order(leg["sl_order_id"])
+
+    def adjust(self) -> None:
+        """Hook called inside main tick loop for open strategies to perform adjustments."""
+        pass
 
     @abstractmethod
     def build_legs(self) -> list[dict[str, Any]]:

@@ -161,7 +161,7 @@ def calculate_greeks(spot_price, strike_price, ltp, expiry_datetime, option_type
             term3 = -r * strike_price * math.exp(-r * T) * norm_cdf(d2)
         else:
             term2 = -q * spot_price * math.exp(-q * T) * norm_cdf(-d1)
-            term3 = r * strike_price * math.exp(-r * T) * norm_cdf(-d2)
+            term3 = -r * strike_price * math.exp(-r * T) * norm_cdf(-d2)
             
         theta = (term1 + term2 + term3) / 365.0
         

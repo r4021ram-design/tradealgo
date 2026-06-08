@@ -18,6 +18,7 @@ from kotak_algo.core.strike_selector import StrikeSelector
 from kotak_algo.strategies.straddle import StraddleStrategy
 from kotak_algo.strategies.strangle import StrangleStrategy
 from kotak_algo.strategies.iron_condor import IronCondorStrategy
+from kotak_algo.core.telemetry import TelemetryManager
 from kotak_algo.utils.config_loader import load_config
 from kotak_algo.config_models import AppConfig
 from kotak_algo.utils.logger import get_logger
@@ -36,6 +37,7 @@ class AlgoApp:
 
         self.logger = LOGGER.bind(component="algo_app")
         self.notifier = TelegramNotifier(self.config["broker"].get("telegram", {}))
+        self.telemetry_manager = TelemetryManager()
         self.broker = NeoBrokerClient(self.config["broker"], logger=self.logger)
         self.position_tracker = PositionTracker(
             client_provider=self.broker,
@@ -52,6 +54,7 @@ class AlgoApp:
             risk_config=self.config["risk"],
             position_tracker=self.position_tracker,
             notifier=self.notifier,
+            telemetry_manager=self.telemetry_manager,
             logger=self.logger,
         )
         self.order_manager = OrderManager(
@@ -87,6 +90,7 @@ class AlgoApp:
                     position_tracker=self.position_tracker,
                     risk_manager=self.risk_manager,
                     notifier=self.notifier,
+                    telemetry_manager=self.telemetry_manager,
                     logger=self.logger,
                 )
             )
@@ -101,6 +105,7 @@ class AlgoApp:
                     position_tracker=self.position_tracker,
                     risk_manager=self.risk_manager,
                     notifier=self.notifier,
+                    telemetry_manager=self.telemetry_manager,
                     logger=self.logger,
                 )
             )
@@ -115,6 +120,7 @@ class AlgoApp:
                     position_tracker=self.position_tracker,
                     risk_manager=self.risk_manager,
                     notifier=self.notifier,
+                    telemetry_manager=self.telemetry_manager,
                     logger=self.logger,
                 )
             )
@@ -129,6 +135,12 @@ class AlgoApp:
         self.position_tracker.start()
         self.websocket.start()
         self.build_strategies()
+        for strategy in self.strategies:
+            strategy.websocket = self.websocket
+
+        # Register app and start Telegram polling listener
+        self.notifier.register_app(self)
+        self.notifier.start_bot_listener()
 
         # Run NSE reference refresh in a background thread to prevent it from blocking startup if the NSE server hangs
         threading.Thread(target=self._refresh_nse_reference, args=(True,), daemon=True).start()
@@ -196,6 +208,11 @@ class AlgoApp:
                 strategy.execute()
             elif strategy.should_exit():
                 strategy.square_off(reason="target_exit_time_reached")
+            elif strategy.state.value == "IN_TRADE":
+                try:
+                    strategy.adjust()
+                except Exception as exc:
+                    self.logger.error("strategy_adjustment_failed", strategy=strategy.name, error=str(exc))
 
         self._check_strategies_health()
 

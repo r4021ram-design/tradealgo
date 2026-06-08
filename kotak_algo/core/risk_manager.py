@@ -5,10 +5,11 @@ from kotak_algo.events import event_bus, Event, EventNames
 
 
 class RiskManager:
-    def __init__(self, risk_config, position_tracker, notifier, logger=None) -> None:
+    def __init__(self, risk_config, position_tracker, notifier, telemetry_manager=None, logger=None) -> None:
         self.risk_config = risk_config
         self.position_tracker = position_tracker
         self.notifier = notifier
+        self.telemetry_manager = telemetry_manager
         self.logger = (logger or get_logger("risk_manager")).bind(component="risk_manager")
         self.open_strategies: set[str] = set()
         self.combined_sl_triggered = False
@@ -46,6 +47,14 @@ class RiskManager:
 
         self.logger.warning("combined_stop_loss_hit", current_loss=current_loss, max_loss=max_loss)
         self.notifier.send(f"Combined SL hit. Loss={current_loss:.2f}, Threshold={max_loss:.2f}")
+        if self.telemetry_manager:
+            self.telemetry_manager.log_event(
+                "risk_threshold",
+                "global",
+                {"type": "combined_stop_loss", "current_loss": current_loss, "max_loss": max_loss},
+                self.position_tracker.total_pnl(),
+                self.position_tracker.margin_used
+            )
         event_bus.publish(Event(
             EventNames.COMBINED_STOP_LOSS_TRIGGERED,
             {"current_loss": current_loss, "max_loss": max_loss}
@@ -77,6 +86,14 @@ class RiskManager:
             
             if is_sl_hit:
                 self.logger.warning("leg_stop_loss_hit", trading_symbol=symbol, ltp=ltp, sl_level=sl_level, side=leg.get("side"))
+                if self.telemetry_manager:
+                    self.telemetry_manager.log_event(
+                        "risk_threshold",
+                        leg.get("strategy", "strategy"),
+                        {"type": "leg_stop_loss", "symbol": symbol, "ltp": ltp, "sl_level": sl_level, "side": leg.get("side")},
+                        self.position_tracker.total_pnl(),
+                        self.position_tracker.margin_used
+                    )
                 event_bus.publish(Event(
                     EventNames.LEG_STOP_LOSS_TRIGGERED,
                     {"trading_symbol": symbol, "sl_level": sl_level, "ltp": ltp}
@@ -139,14 +156,31 @@ class RiskManager:
                 if broker_qty == 0:
                     leg["status"] = "CLOSED"
 
-    def activate_kill_switch(self, order_manager) -> None:
+    def activate_kill_switch(self, order_manager, reason: str = "manual_or_breach") -> None:
         """Emergency procedure to exit all positions and halt trading."""
         if self.kill_switch_active:
             return
             
         self.kill_switch_active = True
         self.logger.critical("KILL_SWITCH_ACTIVATED")
-        self.notifier.send("🚨 EMERGENCY: Kill Switch Activated! Exiting all positions.")
+        self.notifier.send(f"🚨 EMERGENCY: Kill Switch Activated! Exiting all positions (Reason: {reason}).")
+        if self.telemetry_manager:
+            self.telemetry_manager.log_event(
+                "kill_switch",
+                "global",
+                {"reason": reason},
+                self.position_tracker.total_pnl(),
+                self.position_tracker.margin_used
+            )
+        
+        # Instantly cancel all pending orders and resting slices
+        try:
+            self.logger.info("kill_switch_cancelling_all_pending_orders")
+            order_manager.cancel_all_pending()
+            import time
+            time.sleep(0.5)  # Let pending cancels clear
+        except Exception as e:
+            self.logger.error("kill_switch_cancel_pending_failed", error=str(e))
         
         for symbol, leg in list(self.position_tracker.legs.items()):
             if leg.get("status") == "OPEN":
