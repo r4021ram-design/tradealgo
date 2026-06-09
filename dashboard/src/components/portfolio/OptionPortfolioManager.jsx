@@ -573,6 +573,7 @@ export const OptionPortfolioManager = () => {
                 <th className="w-20">Delta</th>
                 <th className="w-20">Gamma</th>
                 <th className="w-20">Theta</th>
+                <th className="w-20">Vega</th>
               </tr>
             </thead>
             <tbody>
@@ -616,7 +617,7 @@ export const OptionPortfolioManager = () => {
                       ₹ {cf.toFixed(2)}
                     </td>
                     <td className="excel-input border-r-2 border-r-gray-400 dark:border-r-slate-700 text-center text-black dark:text-slate-200">
-                      <input type="number" step="0.01" className="w-full bg-transparent text-center outline-none" value={leg.iv*100} onChange={e => updateLeg(leg.id, {iv: Number(e.target.value)/100})} />%
+                      <input type="number" step="0.01" className="w-full bg-transparent text-center outline-none" value={(leg.iv*100).toFixed(2)} onChange={e => updateLeg(leg.id, {iv: Number(e.target.value)/100})} />%
                     </td>
                     <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">₹ {bs.price.toFixed(2)}</td>
                     <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">₹ {value.toFixed(2)}</td>
@@ -624,6 +625,7 @@ export const OptionPortfolioManager = () => {
                     <td className={`bg-[#c6efce] dark:bg-emerald-950/45 text-right ${bs.delta * leg.size < 0 ? 'text-[#ff0000] dark:text-rose-455' : 'text-[#006100] dark:text-emerald-400'}`}>{(bs.delta * leg.size).toFixed(2)}</td>
                     <td className={`bg-[#c6efce] dark:bg-emerald-950/45 text-right ${bs.gamma * leg.size < 0 ? 'text-[#ff0000] dark:text-rose-455' : 'text-[#006100] dark:text-emerald-400'}`}>{(bs.gamma * leg.size).toFixed(4)}</td>
                     <td className={`bg-[#c6efce] dark:bg-emerald-950/45 text-right ${bs.theta * leg.size < 0 ? 'text-[#ff0000] dark:text-rose-455' : 'text-[#006100] dark:text-emerald-400'}`}>{(bs.theta * leg.size).toFixed(2)}</td>
+                    <td className={`bg-[#c6efce] dark:bg-emerald-950/45 text-right ${bs.vega * leg.size < 0 ? 'text-[#ff0000] dark:text-rose-455' : 'text-[#006100] dark:text-emerald-400'}`}>{(bs.vega * leg.size).toFixed(2)}</td>
                   </tr>
                 )
               })}
@@ -647,6 +649,7 @@ export const OptionPortfolioManager = () => {
                   <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">₹ 0.00</td>
                   <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">0.00</td>
                   <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">0.0000</td>
+                  <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">0.00</td>
                   <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">0.00</td>
                 </tr>
               ))}

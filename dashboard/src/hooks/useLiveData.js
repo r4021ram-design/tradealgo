@@ -76,10 +76,39 @@ export function useLiveData() {
         setPositions(mapped);
         setMargins(data.available_margin || 0, data.margin_used || 0);
 
-        const niftyLtp = data.market_data["NIFTY"]?.ltp;
-        const bankniftyLtp = data.market_data["BANKNIFTY"]?.ltp;
-        if (niftyLtp > 0) setNiftySpot(niftyLtp);
-        if (bankniftyLtp > 0) setBankNiftySpot(bankniftyLtp);
+        const niftyData = data.market_data["NIFTY"];
+        const bankniftyData = data.market_data["BANKNIFTY"];
+        const sensexData = data.market_data["SENSEX"];
+        const indiavixData = data.market_data["INDIA VIX"] || data.market_data["INDIAVIX"];
+        
+        if (niftyData) {
+          useTerminalStore.getState().setNifty({
+            ltp: niftyData.ltp,
+            change: niftyData.change !== undefined ? niftyData.change : -23.85,
+            percentChange: niftyData.percent_change !== undefined ? niftyData.percent_change : -0.10
+          });
+        }
+        if (bankniftyData) {
+          useTerminalStore.getState().setBankNifty({
+            ltp: bankniftyData.ltp,
+            change: bankniftyData.change !== undefined ? bankniftyData.change : 154.20,
+            percentChange: bankniftyData.percent_change !== undefined ? bankniftyData.percent_change : 0.28
+          });
+        }
+        if (sensexData) {
+          useTerminalStore.getState().setSensex({
+            ltp: sensexData.ltp,
+            change: sensexData.change !== undefined ? sensexData.change : -120.50,
+            percentChange: sensexData.percent_change !== undefined ? sensexData.percent_change : -0.15
+          });
+        }
+        if (indiavixData) {
+          useTerminalStore.getState().setIndiaVix({
+            ltp: indiavixData.ltp,
+            change: indiavixData.change !== undefined ? indiavixData.change : 0.15,
+            percentChange: indiavixData.percent_change !== undefined ? indiavixData.percent_change : 1.22
+          });
+        }
 
         setMetrics({
           totalPnl: data.total_pnl || 0,

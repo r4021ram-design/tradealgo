@@ -2,7 +2,7 @@
 
 > **Purpose**: This is the single source of truth for the entire KotakAlgo trading system.  
 > Any new AI agent MUST read this file first before making any changes.  
-> Last updated: 2026-05-26
+> Last updated: 2026-06-10
 
 ---
 
@@ -294,7 +294,7 @@ kotakalgo/
 
 ### 4.4 PositionTracker (`core/position_tracker.py`)
 - Tracks all open legs with real-time LTP, bid/ask, Greeks
-- **Rupee-term Greeks Integration**: Interacts with the Black-Scholes Greeks engine (`core/greeks_engine.py`) to calculate Delta, Gamma, Theta, and Vega. Incorporates RBI Repo rate (5.25%) as the risk-free rate `r` and sets options expiry time to 15:30 IST on expiry day for correct DTE (Days-To-Expiry) fractional year calculations.
+- **Rupee-term Greeks Integration**: Interacts with the Black-Scholes Greeks engine (`core/greeks_engine.py`) to calculate Delta, Gamma, Theta, and Vega. Incorporates RBI Repo rate (5.25%) as the risk-free rate `r` and sets options expiry time to 15:30 IST on expiry day for correct DTE (Days-To-Expiry) fractional year calculations. Also implements a **Zero DTE Greeks Fallback Safety Guard** by intercepting the time to expiry `T` and applying `T = max(T, 0.00002)` if `T <= 0` or if the current date matches the contract expiry date exactly, preventing option Greeks from collapsing to flat `0.00` on expiry day.
 - **Background polling** thread reconciles with broker positions
 - **Market data cache** for all subscribed instruments
 - `parse_expiry()` handles NSE (Tuesday) and BSE (Thursday) expiry rules
@@ -352,6 +352,8 @@ Pub/sub system for decoupled communication:
 
 ### 4.10 Option Portfolio Manager & Scenario Analysis (`portfolio/OptionPortfolioManager.jsx`)
 - **Combined Risk Engine**: Aggregates risk and computes combined Greeks (Delta, Gamma, Theta, Vega) across live broker positions (read from active portfolio, with individual inclusion toggles) and manual strategy designer/hedging simulation legs.
+- **Override IV Formatting**: Formats the "Override IV %" input field using JavaScript's `.toFixed(2)` to clip binary float overflow strings and display clean percentages.
+- **Simulation Grid Vega Column**: Appends the "Vega" column directly after "Theta" styled to match Delta/Theta columns, formatted via `.toFixed(2)`.
 - **Scenario Payoff Visualizations**: Renders interactive payoff curves showing P&L across a range of underlying prices. Displays the peaked **Expiry Payoff Line** (T=0 final payout) alongside scenario curves under different volatility and time conditions.
 - **Interactive Controls**: Features time shift slider (0 to 30 days) and custom volatility shifts (Blue base IV, Green shift, Red shift) to model risk profiles and stress test options.
 - **Dynamic X-Axis Scaling**: Automatically scales the graph's X-axis range to span at least 6% of the spot price (+/- 3%) for proper visual resolution of option curve characteristics.
@@ -509,13 +511,14 @@ GET /api/free/option-chain/{symbol}
 - `positions[]` — Open positions with P&L
 - `marketWatch[]` — Watchlist items with live ticks
 - `niftySpot`, `bankNiftySpot` — Index spot prices
+- `nifty`, `banknifty`, `sensex`, `indiavix` — Detailed index state objects (LTP, absolute change, percentage change) for the Top Header Bar ticker.
 - `selectedUnderlying`, `selectedExpiry` — Option chain selection
 - `optionChain[]` — Option chain data rows
 - `orderModal{}` — Order entry modal state
 - `activeView` — Renders either the Live Terminal (`'terminal'`) or the OMS Simulator (`'oms'`)
 - `isPaperTrade` — Boolean tracking if Simulated paper trading or Live trading is active
 - `theme` — Layout theme: `'light'` (Excel spreadsheet look) or `'dark'` (premium terminal look)
-- Actions: `updateTick()`, `setOptionChain()`, `squareOff()`, `executeStrategy()`, `setActiveView()`, `togglePaperTrade()`, `fetchPaperTradeStatus()`, `toggleTheme()`
+- Actions: `updateTick()`, `setNifty()`, `setBankNifty()`, `setSensex()`, `setIndiaVix()`, `setOptionChain()`, `squareOff()`, `executeStrategy()`, `setActiveView()`, `togglePaperTrade()`, `fetchPaperTradeStatus()`, `toggleTheme()`
 
 **`usePortfolioStore`** (portfolio):
 - Portfolio state, manual simulation legs, and P&L/scenario visualization data

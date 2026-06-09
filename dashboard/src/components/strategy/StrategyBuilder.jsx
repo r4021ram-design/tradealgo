@@ -57,6 +57,7 @@ export const StrategyBuilder = () => {
   const [spotPrice, setSpotPrice] = useState(liveSpotPrice || 22000);
   const [selectedGroup, setSelectedGroup] = useState('Volatility');
   const [selectedStrategy, setSelectedStrategy] = useState('Iron Condor');
+  const [selectedExpiryDate, setSelectedExpiryDate] = useState('16-Jun-2026');
 
   // Load selected strategy
   const handleStrategyChange = (e) => {
@@ -160,18 +161,19 @@ export const StrategyBuilder = () => {
     return { maxProfit, maxLoss, netPremium, keyPoints: keyPoints.sort((a,b) => a.spot - b.spot) };
   }, [chartData, legs]);
 
-  // Aggregate legs math with Live Value integration
-  let totalCF = 0;
-  let totalValue = 0;
+  // Aggregate legs math with Live Value integration in Rupees
+  let totalCFRupees = 0;
+  let totalValueRupees = 0;
   legs.forEach(leg => {
-    const cf = leg.size * leg.entryPrice * -1;
-    totalCF += cf;
+    const lotSize = getLotSize(selectedUnderlying) || 65;
+    const cf = leg.size * leg.entryPrice * -1 * lotSize;
+    totalCFRupees += cf;
     
     // Find live LTP for valuation
     const marketData = optionChain.find(o => o.strike === leg.strike);
     const ltp = leg.type === 'Call' ? marketData?.ce?.ltp : marketData?.pe?.ltp;
     if (ltp) {
-        totalValue += leg.size * ltp;
+        totalValueRupees += leg.size * ltp * lotSize;
     }
   });
 
@@ -225,6 +227,20 @@ export const StrategyBuilder = () => {
                             <option key={strat} value={strat}>{strat}</option>
                           ))
                       }
+                    </select>
+                  </td>
+                </tr>
+                <tr>
+                  <td className="bg-[#e6e6e6]">🗓️ Expiry Date</td>
+                  <td>
+                    <select 
+                      className="w-full bg-transparent outline-none font-bold text-xs" 
+                      value={selectedExpiryDate} 
+                      onChange={e => setSelectedExpiryDate(e.target.value)}
+                    >
+                      <option value="16-Jun-2026">16-Jun-2026 (Current Weekly)</option>
+                      <option value="23-Jun-2026">23-Jun-2026 (Next Weekly)</option>
+                      <option value="30-Jun-2026">30-Jun-2026 (June Monthly)</option>
                     </select>
                   </td>
                 </tr>
@@ -304,31 +320,92 @@ export const StrategyBuilder = () => {
             <thead>
               <tr className="bg-[#e6e6e6]">
                 <th className="w-12">Leg</th>
-                <th className="w-20">Position</th>
+                <th className="w-28">Action (BUY/SELL)</th>
+                <th className="w-20">Lots</th>
+                <th className="w-24">Total Qty</th>
                 <th className="w-24">Type</th>
                 <th className="w-24">Strike</th>
                 <th className="w-24">Initial Price</th>
-                <th className="w-24">Initial CF</th>
-                <th className="w-24">Value</th>
-                <th className="w-24">P/L</th>
+                <th className="w-32">Initial CF</th>
+                <th className="w-32">Value</th>
+                <th className="w-32">P/L</th>
               </tr>
             </thead>
             <tbody>
               {legs.map((leg, i) => {
-                const cf = leg.size * leg.entryPrice * -1;
+                const lotSize = getLotSize(selectedUnderlying) || 65;
+                const cfPoints = leg.size * leg.entryPrice * -1;
+                const cfRupees = cfPoints * lotSize;
+                
                 const marketData = optionChain.find(o => o.strike === leg.strike);
                 const ltp = leg.type === 'Call' ? marketData?.ce?.ltp : marketData?.pe?.ltp;
-                const value = ltp ? leg.size * ltp : 0;
-                const pnl = ltp ? (value + cf) : cf;
+                const valuePoints = ltp ? leg.size * ltp : 0;
+                const valueRupees = valuePoints * lotSize;
+                
+                const pnlPoints = ltp ? (valuePoints + cfPoints) : cfPoints;
+                const pnlRupees = pnlPoints * lotSize;
+
+                const lots = Math.abs(leg.size) || 1;
+                const totalQty = lots * lotSize;
 
                 return (
                   <tr key={leg.id}>
                     <td className="bg-[#e6e6e6] text-center">{i + 1}</td>
-                    <td className="excel-input">
-                      <input type="number" className="w-full bg-transparent text-right outline-none font-bold" value={leg.size} onChange={e => updateLeg(leg.id, {size: Number(e.target.value)})} />
+                    
+                    {/* Action (BUY/SELL) Pill overlay */}
+                    <td className="text-center p-1.5">
+                      <button 
+                        onClick={() => updateLeg(leg.id, { size: -leg.size })}
+                        className={`px-3 py-1 rounded text-white font-bold text-xs cursor-pointer shadow-sm min-w-[64px] transition-colors ${
+                          leg.size > 0 
+                            ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20' 
+                            : 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/20'
+                        }`}
+                      >
+                        {leg.size > 0 ? 'BUY' : 'SELL'}
+                      </button>
                     </td>
+
+                    {/* Lots input with L badge */}
+                    <td className="excel-input p-1">
+                      <div className="flex items-center justify-end gap-1 bg-white border border-gray-200 dark:border-slate-800 rounded px-1.5 py-0.5">
+                        <input 
+                          type="number" 
+                          min="1" 
+                          className="w-12 bg-transparent text-right outline-none font-bold text-black border-none" 
+                          value={lots} 
+                          onChange={e => {
+                            const val = Math.max(1, Number(e.target.value));
+                            const sign = leg.size >= 0 ? 1 : -1;
+                            updateLeg(leg.id, { size: val * sign });
+                          }} 
+                        />
+                        <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1 rounded font-bold border border-slate-200 dark:border-slate-700">L</span>
+                      </div>
+                    </td>
+
+                    {/* Total Qty input with QTY badge and step */}
+                    <td className="excel-input p-1">
+                      <div className="flex items-center justify-end gap-1 bg-white border border-gray-200 dark:border-slate-800 rounded px-1.5 py-0.5">
+                        <input 
+                          type="number" 
+                          step={lotSize} 
+                          min={lotSize} 
+                          className="w-16 bg-transparent text-right outline-none text-black border-none" 
+                          value={totalQty} 
+                          onChange={e => {
+                            const qty = Math.max(lotSize, Number(e.target.value));
+                            const newLots = Math.max(1, Math.round(qty / lotSize));
+                            const sign = leg.size >= 0 ? 1 : -1;
+                            updateLeg(leg.id, { size: newLots * sign });
+                          }} 
+                        />
+                        <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-0.5 rounded font-bold border border-slate-200 dark:border-slate-700">QTY</span>
+                      </div>
+                    </td>
+
                     <td className="excel-input text-center">
-                      <select className="bg-transparent outline-none" value={leg.type} onChange={e => updateLeg(leg.id, {type: e.target.value})}>
+                      <select className="bg-transparent outline-none cursor-pointer" value={leg.type} onChange={e => updateLeg(leg.id, {type: e.target.value})}>
                         <option value="Call">Call</option>
                         <option value="Put">Put</option>
                       </select>
@@ -339,11 +416,19 @@ export const StrategyBuilder = () => {
                     <td className="excel-input">
                       <input type="number" step="0.05" className="w-full bg-transparent text-right outline-none" value={leg.entryPrice} onChange={e => updateLeg(leg.id, {entryPrice: Number(e.target.value)})} />
                     </td>
-                    <td className={`bg-[#c6efce] text-right font-bold ${cf < 0 ? 'text-[#ff0000]' : 'text-black'}`}>
-                      {cf.toFixed(2)}
+                    
+                    {/* Initial CF in Rupees formatted */}
+                    <td className={`bg-[#c6efce] text-right font-bold ${cfRupees < 0 ? 'text-[#ff0000]' : 'text-[#006100]'}`}>
+                      {cfRupees >= 0 ? `+₹${cfRupees.toFixed(2)}` : `-₹${Math.abs(cfRupees).toFixed(2)}`}
                     </td>
-                    <td className="bg-[#c6efce] text-right text-[#006100]">{value.toFixed(2)}</td>
-                    <td className={`bg-[#c6efce] text-right font-bold ${pnl < 0 ? 'text-[#ff0000]' : 'text-[#006100]'}`}>{pnl.toFixed(2)}</td>
+
+                    {/* Value in Rupees formatted */}
+                    <td className="bg-[#c6efce] text-right text-[#006100]">₹ {valueRupees.toFixed(2)}</td>
+
+                    {/* P/L in Rupees formatted */}
+                    <td className={`bg-[#c6efce] text-right font-bold ${pnlRupees < 0 ? 'text-[#ff0000]' : 'text-[#006100]'}`}>
+                      {pnlRupees >= 0 ? `+₹${pnlRupees.toFixed(2)}` : `-₹${Math.abs(pnlRupees).toFixed(2)}`}
+                    </td>
                   </tr>
                 );
               })}
@@ -358,14 +443,20 @@ export const StrategyBuilder = () => {
                   <td className="bg-[#e6e6e6]"></td>
                   <td className="bg-[#e6e6e6]"></td>
                   <td className="bg-[#e6e6e6]"></td>
+                  <td className="bg-[#e6e6e6]"></td>
+                  <td className="bg-[#e6e6e6]"></td>
                 </tr>
               ))}
               <tr>
-                <td colSpan="4" className="bg-[#e6e6e6] text-right font-bold pr-4">Total</td>
+                <td colSpan="6" className="bg-[#e6e6e6] text-right font-bold pr-4">Total</td>
                 <td className="bg-[#e6e6e6]"></td>
-                <td className="bg-[#c6efce] text-right text-[#006100] font-bold">{totalCF.toFixed(2)}</td>
-                <td className="bg-[#c6efce] text-right text-[#006100] font-bold">{totalValue.toFixed(2)}</td>
-                <td className={`bg-[#c6efce] text-right font-bold ${(totalValue + totalCF) < 0 ? 'text-[#ff0000]' : 'text-[#006100]'}`}>{(totalValue + totalCF).toFixed(2)}</td>
+                <td className={`bg-[#c6efce] text-right font-bold ${totalCFRupees < 0 ? 'text-[#ff0000]' : 'text-[#006100]'}`}>
+                  {totalCFRupees >= 0 ? `+₹${totalCFRupees.toFixed(2)}` : `-₹${Math.abs(totalCFRupees).toFixed(2)}`}
+                </td>
+                <td className="bg-[#c6efce] text-right text-[#006100] font-bold">₹ {totalValueRupees.toFixed(2)}</td>
+                <td className={`bg-[#c6efce] text-right font-bold ${(totalValueRupees + totalCFRupees) < 0 ? 'text-[#ff0000]' : 'text-[#006100]'}`}>
+                  {(totalValueRupees + totalCFRupees) >= 0 ? `+₹${(totalValueRupees + totalCFRupees).toFixed(2)}` : `-₹${Math.abs(totalValueRupees + totalCFRupees).toFixed(2)}`}
+                </td>
               </tr>
             </tbody>
           </table>

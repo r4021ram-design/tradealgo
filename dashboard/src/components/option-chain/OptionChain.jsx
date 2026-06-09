@@ -40,12 +40,12 @@ const getLotSize = (symbol) => {
   return 1;
 };
 
-// CE sub-columns: OI Chg | OI | Vol | IV | Δ | θ | ν | LTP | Chg% | Bid Q | Bid | Ask | Ask Q
-const CE_COLS = ['oiChange', 'oi', 'volume', 'iv', 'delta', 'theta', 'vega', 'ltp', 'changePct', 'bidQty', 'bidPrice', 'askPrice', 'askQty'];
-const CE_LABELS = ['OI Chg', 'OI', 'Vol', 'IV', 'Δ', 'θ', 'ν', 'LTP', 'Chg%', 'Bid Q', 'Bid', 'Ask', 'Ask Q'];
-// PE sub-columns mirror: Ask Q | Ask | Bid | Bid Q | Chg% | LTP | ν | θ | Δ | IV | Vol | OI | OI Chg
-const PE_COLS = ['askQty', 'askPrice', 'bidPrice', 'bidQty', 'changePct', 'ltp', 'vega', 'theta', 'delta', 'iv', 'volume', 'oi', 'oiChange'];
-const PE_LABELS = ['Ask Q', 'Ask', 'Bid', 'Bid Q', 'Chg%', 'LTP', 'ν', 'θ', 'Δ', 'IV', 'Vol', 'OI', 'OI Chg'];
+// CE sub-columns: OI | OI Chg | Vol | IV | Δ | Γ | θ | ν | Bid Q | Bid | Ask | Ask Q | LTP | Chg%
+const CE_COLS = ['oi', 'oiChange', 'volume', 'iv', 'delta', 'gamma', 'theta', 'vega', 'bidQty', 'bidPrice', 'askPrice', 'askQty', 'ltp', 'changePct'];
+const CE_LABELS = ['OI', 'OI Chg', 'Vol', 'IV', 'Δ', 'Γ', 'θ', 'ν', 'Bid Q', 'Bid', 'Ask', 'Ask Q', 'LTP', 'Chg%'];
+// PE sub-columns mirror: Chg% | LTP | Bid Q | Bid | Ask | Ask Q | Δ | Γ | θ | ν | IV | Vol | OI Chg | OI
+const PE_COLS = ['changePct', 'ltp', 'bidQty', 'bidPrice', 'askPrice', 'askQty', 'delta', 'gamma', 'theta', 'vega', 'iv', 'volume', 'oiChange', 'oi'];
+const PE_LABELS = ['Chg%', 'LTP', 'Bid Q', 'Bid', 'Ask', 'Ask Q', 'Δ', 'Γ', 'θ', 'ν', 'IV', 'Vol', 'OI Chg', 'OI'];
 
 function CellValue({ col, data, side }) {
   const val = data[col];
@@ -67,16 +67,16 @@ function CellValue({ col, data, side }) {
       className = 'oc-greek';
       break;
     case 'delta':
-      display = fmtNum(val, 4);
+      display = fmtNum(Math.max(-1.0, Math.min(1.0, val)), 4);
       className = 'oc-greek';
       break;
     case 'gamma':
-      display = fmtNum(val, 5);
+      display = fmtNum(val, 4);
       className = 'oc-greek';
       break;
     case 'theta':
-      display = fmtNum(val, 2);
-      className = val < 0 ? 'oc-red oc-greek' : 'oc-green oc-greek';
+      display = fmtNum(-Math.abs(val), 2);
+      className = 'oc-red oc-greek';
       break;
     case 'vega':
       display = fmtNum(val, 2);
@@ -84,11 +84,11 @@ function CellValue({ col, data, side }) {
       break;
     case 'ltp':
       display = fmtNum(val, 2);
-      className = 'oc-ltp' + (data.tickDirection === 1 ? ' flash-up' : data.tickDirection === -1 ? ' flash-down' : '');
+      className = 'oc-ltp' + (data.changePct > 0 ? ' oc-emerald' : data.changePct < 0 ? ' oc-rose' : '') + (data.tickDirection === 1 ? ' flash-up' : data.tickDirection === -1 ? ' flash-down' : '');
       break;
     case 'changePct':
       display = (val > 0 ? '+' : '') + fmtNum(val, 2) + '%';
-      className = 'oc-chg ' + (val > 0 ? 'oc-green' : val < 0 ? 'oc-red' : 'oc-muted');
+      className = 'oc-chg ' + (val > 0 ? 'oc-emerald' : val < 0 ? 'oc-rose' : 'oc-muted');
       break;
     case 'bidPrice':
     case 'askPrice':
@@ -124,7 +124,7 @@ export const OptionChain = () => {
   const [showFullChain, setShowFullChain] = useState(false);
 
   // Greeks columns to toggle
-  const greeksCols = ['iv', 'delta', 'theta', 'vega'];
+  const greeksCols = ['iv', 'delta', 'gamma', 'theta', 'vega'];
   
   const activeCeCols = useMemo(() => showGreeks ? CE_COLS : CE_COLS.filter(c => !greeksCols.includes(c)), [showGreeks]);
   const activeCeLabels = useMemo(() => showGreeks ? CE_LABELS : CE_LABELS.filter((_, i) => !greeksCols.includes(CE_COLS[i])), [showGreeks]);
@@ -503,11 +503,11 @@ export const OptionChain = () => {
                     <td
                       key={'ce-' + i}
                       className={
-                        (col === 'ltp' ? ('oc-ltp' + (row.ce.tickDirection === 1 ? ' oc-flash-up' : row.ce.tickDirection === -1 ? ' oc-flash-down' : '')) : '') +
-                        (col === 'changePct' ? (' oc-chg ' + (row.ce.changePct > 0 ? 'oc-green' : row.ce.changePct < 0 ? 'oc-red' : 'oc-muted')) : '') +
+                        (col === 'ltp' ? ('oc-ltp' + (row.ce.tickDirection === 1 ? ' oc-flash-up' : row.ce.tickDirection === -1 ? ' oc-flash-down' : '') + (row.ce.changePct > 0 ? ' oc-emerald' : row.ce.changePct < 0 ? ' oc-rose' : '')) : '') +
+                        (col === 'changePct' ? (' oc-chg ' + (row.ce.changePct > 0 ? 'oc-emerald' : row.ce.changePct < 0 ? 'oc-rose' : 'oc-muted')) : '') +
                         (col === 'oiChange' ? (row.ce.oiChange > 0 ? ' oc-oi-pos' : row.ce.oiChange < 0 ? ' oc-oi-neg' : '') : '') +
-                        (col === 'theta' ? (row.ce.theta < 0 ? ' oc-red' : ' oc-green') : '') +
-                        (['iv', 'delta', 'theta', 'vega'].includes(col) ? ' oc-greek' : '') +
+                        (col === 'theta' ? ' oc-red' : '') +
+                        (['iv', 'delta', 'gamma', 'theta', 'vega'].includes(col) ? ' oc-greek' : '') +
                         (isMaxOi ? ' oc-highlight-ce' : '') +
                         (isMaxOiChg ? ' oc-highlight-ce-subtle' : '') +
                         (isMaxVol ? ' oc-highlight-vol' : '') +
@@ -531,8 +531,9 @@ export const OptionChain = () => {
                        col === 'oiChange' ? ((row.ce.oiChange > 0 ? '+' : '') + fmtOI(row.ce.oiChange)) :
                        col === 'volume' ? fmtVol(row.ce.volume) :
                        col === 'iv' ? fmtNum(row.ce.iv, 2) + '%' :
-                       col === 'delta' ? fmtNum(row.ce.delta, 4) :
-                       col === 'theta' ? fmtNum(row.ce.theta, 2) :
+                       col === 'delta' ? fmtNum(Math.max(-1.0, Math.min(1.0, row.ce.delta)), 4) :
+                       col === 'gamma' ? fmtNum(row.ce.gamma, 4) :
+                       col === 'theta' ? fmtNum(-Math.abs(row.ce.theta), 2) :
                        col === 'vega' ? fmtNum(row.ce.vega, 2) :
                        col === 'changePct' ? ((row.ce.changePct > 0 ? '+' : '') + fmtNum(row.ce.changePct, 2) + '%') :
                        col === 'bidQty' || col === 'askQty' ? (row.ce[col]?.toLocaleString() || '-') :
@@ -554,11 +555,11 @@ export const OptionChain = () => {
                     <td
                       key={'pe-' + i}
                       className={
-                        (col === 'ltp' ? ('oc-ltp' + (row.pe.tickDirection === 1 ? ' oc-flash-up' : row.pe.tickDirection === -1 ? ' oc-flash-down' : '')) : '') +
-                        (col === 'changePct' ? (' oc-chg ' + (row.pe.changePct > 0 ? 'oc-green' : row.pe.changePct < 0 ? 'oc-red' : 'oc-muted')) : '') +
+                        (col === 'ltp' ? ('oc-ltp' + (row.pe.tickDirection === 1 ? ' oc-flash-up' : row.pe.tickDirection === -1 ? ' oc-flash-down' : '') + (row.pe.changePct > 0 ? ' oc-emerald' : row.pe.changePct < 0 ? ' oc-rose' : '')) : '') +
+                        (col === 'changePct' ? (' oc-chg ' + (row.pe.changePct > 0 ? 'oc-emerald' : row.pe.changePct < 0 ? 'oc-rose' : 'oc-muted')) : '') +
                         (col === 'oiChange' ? (row.pe.oiChange > 0 ? ' oc-oi-pos' : row.pe.oiChange < 0 ? ' oc-oi-neg' : '') : '') +
-                        (col === 'theta' ? (row.pe.theta < 0 ? ' oc-red' : ' oc-green') : '') +
-                        (['iv', 'delta', 'theta', 'vega'].includes(col) ? ' oc-greek' : '') +
+                        (col === 'theta' ? ' oc-red' : '') +
+                        (['iv', 'delta', 'gamma', 'theta', 'vega'].includes(col) ? ' oc-greek' : '') +
                         (isMaxOi ? ' oc-highlight-pe' : '') +
                         (isMaxOiChg ? ' oc-highlight-pe-subtle' : '') +
                         (isMaxVol ? ' oc-highlight-vol' : '') +
@@ -582,8 +583,9 @@ export const OptionChain = () => {
                        col === 'oiChange' ? ((row.pe.oiChange > 0 ? '+' : '') + fmtOI(row.pe.oiChange)) :
                        col === 'volume' ? fmtVol(row.pe.volume) :
                        col === 'iv' ? fmtNum(row.pe.iv, 2) + '%' :
-                       col === 'delta' ? fmtNum(row.pe.delta, 4) :
-                       col === 'theta' ? fmtNum(row.pe.theta, 2) :
+                       col === 'delta' ? fmtNum(Math.max(-1.0, Math.min(1.0, row.pe.delta)), 4) :
+                       col === 'gamma' ? fmtNum(row.pe.gamma, 4) :
+                       col === 'theta' ? fmtNum(-Math.abs(row.pe.theta), 2) :
                        col === 'vega' ? fmtNum(row.pe.vega, 2) :
                        col === 'changePct' ? ((row.pe.changePct > 0 ? '+' : '') + fmtNum(row.pe.changePct, 2) + '%') :
                        col === 'bidQty' || col === 'askQty' ? (row.pe[col]?.toLocaleString() || '-') :

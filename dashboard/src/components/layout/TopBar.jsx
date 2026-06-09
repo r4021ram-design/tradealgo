@@ -20,8 +20,29 @@ export const TopBar = () => {
     return acc + p.realizedPnl + unrealized;
   }, 0);
 
-  const niftySpot = useTerminalStore(state => state.niftySpot);
-  const bankNiftySpot = useTerminalStore(state => state.bankNiftySpot);
+  const nifty = useTerminalStore(state => state.nifty) || { ltp: 23985.0, change: -23.85, percentChange: -0.10 };
+  const banknifty = useTerminalStore(state => state.banknifty) || { ltp: 55138.0, change: 154.20, percentChange: 0.28 };
+  const sensex = useTerminalStore(state => state.sensex) || { ltp: 78500.0, change: -120.50, percentChange: -0.15 };
+  const indiavix = useTerminalStore(state => state.indiavix) || { ltp: 12.45, change: 0.15, percentChange: 1.22 };
+
+  const renderIndexBlock = (name, indexData) => {
+    const ltp = indexData?.ltp ?? 0;
+    const change = indexData?.change ?? 0;
+    const percentChange = indexData?.percentChange ?? 0;
+    const isPositive = change >= 0;
+    const colorClass = isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
+    const sign = isPositive ? '+' : '';
+    
+    return (
+      <div className="flex items-center space-x-2 text-xs select-none">
+        <span className="text-[#555] dark:text-slate-400 font-bold">{name}</span>
+        <span className="text-slate-800 dark:text-slate-200 font-bold font-mono">{ltp.toFixed(2)}</span>
+        <span className={`${colorClass} font-mono font-semibold`}>
+          {sign}{change.toFixed(2)} ({sign}{percentChange.toFixed(2)}%)
+        </span>
+      </div>
+    );
+  };
   const activeView = useTerminalStore(state => state.activeView);
   const setActiveView = useTerminalStore(state => state.setActiveView);
   const isPaperTrade = useTerminalStore(state => state.isPaperTrade);
@@ -47,22 +68,10 @@ export const TopBar = () => {
   return (
     <div className="flex items-center justify-between bg-finance-panel dark:bg-slate-900 border-b border-finance-border dark:border-slate-800 px-2 py-1 text-sm shrink-0">
       <div className="flex items-center space-x-6">
-        <div className="flex items-center space-x-2 font-mono">
-          <span className="text-[#555] dark:text-slate-400">NIFTY</span>
-          <span className="text-finance-green font-bold">
-            {niftySpot.toFixed(2)}
-          </span>
-        </div>
-        <div className="flex items-center space-x-2 font-mono">
-          <span className="text-[#555] dark:text-slate-400">BANKNIFTY</span>
-          <span className="text-finance-green font-bold">
-            {bankNiftySpot.toFixed(2)}
-          </span>
-        </div>
-        <div className="flex items-center space-x-2 font-mono">
-          <span className="text-[#555] dark:text-slate-400">INDIA VIX</span>
-          <span className="text-finance-text dark:text-slate-200">12.45</span>
-        </div>
+        {renderIndexBlock("NIFTY", nifty)}
+        {renderIndexBlock("BANKNIFTY", banknifty)}
+        {renderIndexBlock("SENSEX", sensex)}
+        {renderIndexBlock("INDIA VIX", indiavix)}
       </div>
 
       <div className="flex items-center space-x-4">

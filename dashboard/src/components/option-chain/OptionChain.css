@@ -198,6 +198,8 @@ input:checked + .oc-toggle-slider:before { transform: translateX(14px); }
 .oc-green { color: #008800; }
 .oc-red { color: #cc0000; }
 .oc-muted { color: #666; }
+.oc-emerald { color: #10b981 !important; }
+.oc-rose { color: #f43f5e !important; }
 
 .oc-oi-pos { color: #008800; }
 .oc-oi-neg { color: #cc0000; }

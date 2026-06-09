@@ -126,9 +126,9 @@ def calculate_greeks(spot_price, strike_price, ltp, expiry_datetime, option_type
     
     T = (expiry_at_close - now).total_seconds() / (365.25 * 24 * 3600)
     
-    # If already expired or very close to expiry
-    if T <= 0:
-        T = 0.00001  # Minimum small positive value
+    # If already expired or on the day of expiry, apply minimum baseline precision ceiling guard
+    if T <= 0 or expiry_datetime.date() == now.date():
+        T = max(T, 0.00002)
     
     # Calculate IV via Newton-Raphson + Bisection fallback
     sigma = implied_volatility_nr(spot_price, strike_price, T, r, ltp, option_type, q)

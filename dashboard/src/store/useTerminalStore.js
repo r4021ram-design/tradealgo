@@ -14,6 +14,10 @@ export const useTerminalStore = create((set, get) => ({
   marginUsed: 0,
   niftySpot: 23985.0,
   bankNiftySpot: 55138.0,
+  nifty: { ltp: 23985.0, change: -23.85, percentChange: -0.10 },
+  banknifty: { ltp: 55138.0, change: 154.20, percentChange: 0.28 },
+  sensex: { ltp: 78500.0, change: -120.50, percentChange: -0.15 },
+  indiavix: { ltp: 12.45, change: 0.15, percentChange: 1.22 },
   activeView: 'terminal', // 'terminal' or 'oms'
   setActiveView: (activeView) => set({ activeView }),
 
@@ -90,8 +94,12 @@ export const useTerminalStore = create((set, get) => ({
 
   setPositions: (positions) => set({ positions }),
   setMargins: (availableMargin, marginUsed) => set({ availableMargin, marginUsed }),
-  setNiftySpot: (niftySpot) => set({ niftySpot }),
-  setBankNiftySpot: (bankNiftySpot) => set({ bankNiftySpot }),
+  setNiftySpot: (niftySpot) => set((state) => ({ niftySpot, nifty: { ...state.nifty, ltp: niftySpot } })),
+  setBankNiftySpot: (bankNiftySpot) => set((state) => ({ bankNiftySpot, banknifty: { ...state.banknifty, ltp: bankNiftySpot } })),
+  setNifty: (nifty) => set({ nifty, niftySpot: nifty.ltp }),
+  setBankNifty: (banknifty) => set({ banknifty, bankNiftySpot: banknifty.ltp }),
+  setSensex: (sensex) => set({ sensex }),
+  setIndiaVix: (indiavix) => set({ indiavix }),
 
   updateOptionChainRow: (strike, side, updates) => set((state) => {
     if (side !== 'ce' && side !== 'pe') return {};
@@ -138,7 +146,27 @@ export const useTerminalStore = create((set, get) => ({
   })),
 
   // Action to update LTP and tick direction
-  updateTick: (symbol, newLtp) => set((state) => {
+  updateTick: (symbol, newLtp, extraData = {}) => set((state) => {
+    const cleanSym = symbol.replace(" ", "").toUpperCase();
+    let updatedIndex = {};
+    if (cleanSym === 'NIFTY') {
+      const change = extraData.change !== undefined ? extraData.change : state.nifty.change;
+      const percentChange = extraData.percent_change !== undefined ? extraData.percent_change : (extraData.percentChange !== undefined ? extraData.percentChange : state.nifty.percentChange);
+      updatedIndex = { nifty: { ltp: newLtp, change, percentChange }, niftySpot: newLtp };
+    } else if (cleanSym === 'BANKNIFTY') {
+      const change = extraData.change !== undefined ? extraData.change : state.banknifty.change;
+      const percentChange = extraData.percent_change !== undefined ? extraData.percent_change : (extraData.percentChange !== undefined ? extraData.percentChange : state.banknifty.percentChange);
+      updatedIndex = { banknifty: { ltp: newLtp, change, percentChange }, bankNiftySpot: newLtp };
+    } else if (cleanSym === 'SENSEX') {
+      const change = extraData.change !== undefined ? extraData.change : state.sensex.change;
+      const percentChange = extraData.percent_change !== undefined ? extraData.percent_change : (extraData.percentChange !== undefined ? extraData.percentChange : state.sensex.percentChange);
+      updatedIndex = { sensex: { ltp: newLtp, change, percentChange } };
+    } else if (cleanSym === 'INDIAVIX' || cleanSym === 'INDIA VIX') {
+      const change = extraData.change !== undefined ? extraData.change : state.indiavix.change;
+      const percentChange = extraData.percent_change !== undefined ? extraData.percent_change : (extraData.percentChange !== undefined ? extraData.percentChange : state.indiavix.percentChange);
+      updatedIndex = { indiavix: { ltp: newLtp, change, percentChange } };
+    }
+
     const updateLtp = (items) => items.map(item => {
       if (item.symbol === symbol) {
         const tickDirection = newLtp > item.ltp ? 1 : newLtp < item.ltp ? -1 : 0;
@@ -149,7 +177,8 @@ export const useTerminalStore = create((set, get) => ({
 
     return {
       positions: updateLtp(state.positions),
-      marketWatch: updateLtp(state.marketWatch)
+      marketWatch: updateLtp(state.marketWatch),
+      ...updatedIndex
     };
   }),
 

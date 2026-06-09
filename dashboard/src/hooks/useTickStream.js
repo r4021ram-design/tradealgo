@@ -28,9 +28,10 @@ export const useTickStream = () => {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.symbol && data.ltp !== undefined) {
-            updateTick(data.symbol, data.ltp);
-            updateMarketWatchTick(data.symbol, data);
+          const symbol = data.symbol || data.trading_symbol;
+          if (symbol && data.ltp !== undefined) {
+            updateTick(symbol, data.ltp, data);
+            updateMarketWatchTick(symbol, data);
           }
         } catch (err) {
           // Silently ignore malformed messages

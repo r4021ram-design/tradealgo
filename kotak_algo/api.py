@@ -1119,7 +1119,7 @@ async def get_contract_details(trading_symbol: str, db = Depends(get_db)):
                 "success": True,
                 "trading_symbol": sym_upper,
                 "symbol": sym_upper,
-                "token": "26000" if sym_upper == "NIFTY" else "26009" if sym_upper == "BANKNIFTY" else "",
+                "token": "26000" if sym_upper == "NIFTY" else "26009" if sym_upper == "BANKNIFTY" else "1" if sym_upper == "SENSEX" else "12" if sym_upper == "BANKEX" else "",
                 "lot_size": lot_sizes.get(sym_upper, 1),
                 "exchange_segment": exg,
                 "instrument_type": "IDX",

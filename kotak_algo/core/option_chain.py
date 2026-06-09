@@ -56,11 +56,24 @@ class OptionChainService:
         spot = 0.0
         futures_spot = 0.0  # Track futures separately for reference
 
-        # Try actual Index quote FIRST (matches NSE India methodology)
-        idx_token = "26000" if underlying.upper() == "NIFTY" else "26009" if underlying.upper() == "BANKNIFTY" else None
+        idx_token = None
+        idx_segment = "nse_cm"
+        if underlying.upper() == "NIFTY":
+            idx_token = "26000"
+            idx_segment = "nse_cm"
+        elif underlying.upper() == "BANKNIFTY":
+            idx_token = "26009"
+            idx_segment = "nse_cm"
+        elif underlying.upper() == "SENSEX":
+            idx_token = "1"
+            idx_segment = "bse_cm"
+        elif underlying.upper() == "BANKEX":
+            idx_token = "12"
+            idx_segment = "bse_cm"
+
         if idx_token:
             try:
-                quotes = self.broker.quotes(instrument_tokens=[{"instrument_token": idx_token, "exchange_segment": "nse_cm"}], is_index=True)
+                quotes = self.broker.quotes(instrument_tokens=[{"instrument_token": idx_token, "exchange_segment": idx_segment}], is_index=True)
                 parsed = self._parse_quotes(quotes)
                 spot = parsed.get(idx_token, {}).get("ltp", 0.0)
                 if spot > 0:

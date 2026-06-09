@@ -128,6 +128,23 @@ class AlgoApp:
     def start(self) -> None:
         self.logger.info("app_starting")
         self.broker.authenticate()
+        # Trigger BSE contract sync once authenticated
+        def run_initial_bse_sync():
+            try:
+                time.sleep(5)  # Wait a bit for other tasks to settle
+                from kotak_algo.instruments.scheduler.daily_sync import DailySync
+                from kotak_algo.instruments.data.db_utils import SessionLocal
+                db = SessionLocal()
+                try:
+                    sync = DailySync()
+                    sync._save_bse_contracts(db, self.broker)
+                finally:
+                    db.close()
+            except Exception as e:
+                self.logger.error("initial_bse_sync_failed", error=str(e))
+
+        threading.Thread(target=run_initial_bse_sync, daemon=True).start()
+
         # Start proactive session health check every 5 minutes
         self.broker.start_health_check(interval_seconds=300)
         

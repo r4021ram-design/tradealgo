@@ -311,9 +311,12 @@ In the Kotak Securities / Kotak Neo API, every derivative contract is identified
 2. **Trading Symbol (`trading_symbol`)**: A human-readable string descriptive name (e.g. `NIFTY26MAY30700CE`).
 
 ### A. Key Index Spot Tokens
-Real-time spot/index calculations query the following fixed exchange tokens from the `nse_cm` segment:
-*   **NIFTY 50 Spot**: `26000`
-*   **BANK NIFTY Spot**: `26009`
+Real-time spot/index calculations query the following fixed exchange tokens:
+*   **NIFTY 50 Spot**: `26000` (`nse_cm`)
+*   **BANK NIFTY Spot**: `26009` (`nse_cm`)
+*   **SENSEX Spot**: `1` (`bse_cm`)
+*   **BANKEX Spot**: `12` (`bse_cm`)
+*   **INDIA VIX Spot**: `26017` (`nse_cm`)
 
 ### B. Option Trading Symbol Structure
 Kotak Neo employs two standard F&O trading symbol formatting patterns:
