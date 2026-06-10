@@ -20,10 +20,10 @@ export const TopBar = () => {
     return acc + p.realizedPnl + unrealized;
   }, 0);
 
-  const nifty = useTerminalStore(state => state.nifty) || { ltp: 23985.0, change: -23.85, percentChange: -0.10 };
-  const banknifty = useTerminalStore(state => state.banknifty) || { ltp: 55138.0, change: 154.20, percentChange: 0.28 };
-  const sensex = useTerminalStore(state => state.sensex) || { ltp: 78500.0, change: -120.50, percentChange: -0.15 };
-  const indiavix = useTerminalStore(state => state.indiavix) || { ltp: 12.45, change: 0.15, percentChange: 1.22 };
+  const nifty = useTerminalStore(state => state.nifty) || { ltp: 0, change: 0, percentChange: 0 };
+  const banknifty = useTerminalStore(state => state.banknifty) || { ltp: 0, change: 0, percentChange: 0 };
+  const sensex = useTerminalStore(state => state.sensex) || { ltp: 0, change: 0, percentChange: 0 };
+  const indiavix = useTerminalStore(state => state.indiavix) || { ltp: 0, change: 0, percentChange: 0 };
 
   const renderIndexBlock = (name, indexData) => {
     const ltp = indexData?.ltp ?? 0;

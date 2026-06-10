@@ -33,14 +33,13 @@ class DailySync:
     # ------------------------------------------------------------------
     async def sync_now(self) -> None:
         LOGGER.info("starting_instrument_sync")
-        db: Session = SessionLocal()
         try:
             nse_count = 0
             # --- Step 1: Try contract master file first ---
             df = await asyncio.to_thread(self.fetcher.fetch_contract_master)
 
             if df is not None and not df.empty:
-                nse_count = await asyncio.to_thread(self._save_from_contract_master, db, df)
+                nse_count = await asyncio.to_thread(self._save_from_contract_master, df)
             else:
                 # --- Step 2: Fallback — build from option-chain API (indices only) ---
                 LOGGER.info("contract_master_unavailable_falling_back_to_option_chains")
@@ -50,13 +49,13 @@ class DailySync:
                 )
                 if df is None or df.empty:
                     LOGGER.error("sync_failed_no_data")
-                    self._log_sync(db, "FAILED", "No data from any source")
+                    self._log_sync("FAILED", "No data from any source")
                 else:
                     # --- Step 3: Fetch lot sizes ---
                     lot_map = await asyncio.to_thread(self.fetcher.fetch_lot_sizes)
 
                     # --- Step 4: Persist ---
-                    nse_count = await asyncio.to_thread(self._save_from_chains, db, df, lot_map)
+                    nse_count = await asyncio.to_thread(self._save_from_chains, df, lot_map)
 
             # --- Step 5: Sync BSE contracts ---
             bse_count = 0
@@ -64,154 +63,169 @@ class DailySync:
             app = get_algo_app()
             broker = app.broker if (app and hasattr(app, "broker") and app.broker and app.broker._client is not None) else None
             
-            bse_count = await asyncio.to_thread(self._save_bse_contracts, db, broker)
+            bse_count = await asyncio.to_thread(self._save_bse_contracts, broker)
             
             total_count = nse_count + bse_count
-            self._run_validation(db, f"Sync complete. NSE: {nse_count}, BSE: {bse_count}. Total: {total_count} rows")
+            self._run_validation(f"Sync complete. NSE: {nse_count}, BSE: {bse_count}. Total: {total_count} rows")
 
         except Exception as exc:
-            db.rollback()
             LOGGER.exception("sync_exception", error=str(exc))
-            self._log_sync(db, "FAILED", str(exc)[:250])
+            self._log_sync("FAILED", str(exc)[:250])
+
+    def _run_validation(self, sync_message: str) -> None:
+        """Run post-sync validation and log results."""
+        db = SessionLocal()
+        try:
+            from kotak_algo.instruments.services.validator_service import InstrumentValidator
+            validator = InstrumentValidator(db)
+            results = validator.run_full_audit()
+            
+            if results["summary"] == "PASSED":
+                LOGGER.info("instrument_sync_validation_passed", details=results)
+                self._log_sync_internal(db, "SUCCESS", sync_message)
+            else:
+                LOGGER.error("instrument_sync_validation_failed", details=results)
+                self._log_sync_internal(db, "FAILED", f"Validation failed: {results['lot_sizes']['errors']} lot errors")
         finally:
             db.close()
-
-    def _run_validation(self, db: Session, sync_message: str) -> None:
-        """Run post-sync validation and log results."""
-        from kotak_algo.instruments.services.validator_service import InstrumentValidator
-        validator = InstrumentValidator(db)
-        results = validator.run_full_audit()
-        
-        if results["summary"] == "PASSED":
-            LOGGER.info("instrument_sync_validation_passed", details=results)
-            self._log_sync(db, "SUCCESS", sync_message)
-        else:
-            LOGGER.error("instrument_sync_validation_failed", details=results)
-            self._log_sync(db, "FAILED", f"Validation failed: {results['lot_sizes']['errors']} lot errors")
 
     # ------------------------------------------------------------------
     # Persistence helpers
     # ------------------------------------------------------------------
-    def _save_from_contract_master(self, db: Session, df) -> int:
-        """
-        Parse the NSE daily contract master CSV.
+    def _save_from_contract_master(self, df) -> int:
+        db = SessionLocal()
+        try:
+            db.query(Contract).filter(Contract.exchange == 'NSE').delete()
 
-        Actual column mapping (from NSE file header):
-          FinInstrmId      → internal token id
-          UndrlygFinInstrmId → underlying id
-          FinInstrmNm      → instrument type  (OPTIDX, OPTSTK, FUTIDX, FUTSTK)
-          TckrSymb         → symbol            (NIFTY, BANKNIFTY, RELIANCE …)
-          XpryDt           → expiry            (Unix epoch seconds)
-          StrkPric         → strike price      (in paise, e.g. 6540000 = 65400)
-          OptnTp           → option type       (CE / PE / XX for futures)
-          MinLot           → minimum lot
-          NewBrdLotQty     → board lot qty (= lot size)
-          StockNm          → trading symbol    (BANKNIFTY26JUN65400CE)
-        """
-        db.query(Contract).filter(Contract.exchange == 'NSE').delete()
+            cols = set(df.columns)
+            LOGGER.info("contract_master_columns", columns=list(cols)[:25])
 
-        cols = set(df.columns)
-        LOGGER.info("contract_master_columns", columns=list(cols)[:25])
-
-        count = 0
-        for _, row in df.iterrows():
-            try:
-                symbol = str(row.get("TckrSymb", "")).strip()
-                if not symbol or symbol.lower() in ("nan", "null", ""):
-                    continue
-
-                # --- Expiry: NSE epoch (base 1980-01-01) → date ---
-                # NSE uses seconds since 1980-01-01 UTC, not the standard 1970 epoch.
-                NSE_EPOCH_OFFSET = 315532800  # seconds between 1970-01-01 and 1980-01-01
-                raw_expiry = row.get("XpryDt", 0)
+            count = 0
+            for _, row in df.iterrows():
                 try:
-                    unix_ts = int(float(raw_expiry)) + NSE_EPOCH_OFFSET
-                    expiry_dt = datetime.utcfromtimestamp(unix_ts).date()
-                except (ValueError, TypeError, OSError):
-                    expiry_dt = None
+                    symbol = str(row.get("TckrSymb", "")).strip()
+                    if not symbol or symbol.lower() in ("nan", "null", ""):
+                        continue
 
-                # --- Strike: paise → rupees (divide by 100) ---
-                raw_strike = float(row.get("StrkPric", 0))
-                strike = raw_strike / 100.0
+                    # --- Expiry: NSE epoch (base 1980-01-01) → date ---
+                    NSE_EPOCH_OFFSET = 315532800  # seconds between 1970-01-01 and 1980-01-01
+                    raw_expiry = row.get("XpryDt", 0)
+                    try:
+                        unix_ts = int(float(raw_expiry)) + NSE_EPOCH_OFFSET
+                        expiry_dt = datetime.utcfromtimestamp(unix_ts).date()
+                    except (ValueError, TypeError, OSError):
+                        expiry_dt = None
 
-                opt_type = str(row.get("OptnTp", "XX")).strip()
-                inst_type = str(row.get("FinInstrmNm", "")).strip()
-                trading_sym = str(row.get("StockNm", "")).strip()
-                if not trading_sym or trading_sym.lower() in ("nan", "null", ""):
+                    # --- Strike: paise → rupees (divide by 100) ---
+                    raw_strike = float(row.get("StrkPric", 0))
+                    strike = raw_strike / 100.0
+
+                    opt_type = str(row.get("OptnTp", "XX")).strip()
+                    inst_type = str(row.get("FinInstrmNm", "")).strip()
+                    trading_sym = str(row.get("StockNm", "")).strip()
+                    if not trading_sym or trading_sym.lower() in ("nan", "null", ""):
+                        continue
+                    token = str(row.get("FinInstrmId", "")).strip()
+                    lot_size = int(float(row.get("NewBrdLotQty", row.get("MinLot", 0))))
+
+                    weekly_monthly = (
+                        "MONTHLY" if ExpiryService.is_monthly_expiry(expiry_dt) else "WEEKLY"
+                    ) if expiry_dt else "UNKNOWN"
+
+                    db.add(Contract(
+                        exchange="NSE",
+                        segment="FO",
+                        symbol=symbol,
+                        trading_symbol=trading_sym or f"{symbol}{token}",
+                        underlying=symbol,
+                        expiry=expiry_dt,
+                        strike=strike,
+                        option_type=opt_type,
+                        instrument_type=inst_type,
+                        lot_size=lot_size,
+                        freeze_qty=0,
+                        token=token,
+                        weekly_monthly_flag=weekly_monthly,
+                    ))
+                    count += 1
+                except Exception:
                     continue
-                token = str(row.get("FinInstrmId", "")).strip()
-                lot_size = int(float(row.get("NewBrdLotQty", row.get("MinLot", 0))))
 
-                weekly_monthly = (
-                    "MONTHLY" if ExpiryService.is_monthly_expiry(expiry_dt) else "WEEKLY"
-                ) if expiry_dt else "UNKNOWN"
+            db.commit()
+            LOGGER.info("saved_contract_master", count=count)
+            return count
+        except Exception as e:
+            db.rollback()
+            LOGGER.exception("save_contract_master_failed", error=str(e))
+            raise
+        finally:
+            db.close()
 
-                db.add(Contract(
-                    exchange="NSE",
-                    segment="FO",
-                    symbol=symbol,
-                    trading_symbol=trading_sym or f"{symbol}{token}",
-                    underlying=symbol,
-                    expiry=expiry_dt,
-                    strike=strike,
-                    option_type=opt_type,
-                    instrument_type=inst_type,
-                    lot_size=lot_size,
-                    freeze_qty=0,
-                    token=token,
-                    weekly_monthly_flag=weekly_monthly,
-                ))
-                count += 1
-            except Exception:
-                continue
-
-        db.commit()
-        LOGGER.info("saved_contract_master", count=count)
-        return count
-
-    def _save_from_chains(self, db: Session, df, lot_map: dict) -> int:
+    def _save_from_chains(self, df, lot_map: dict) -> int:
         """Persist rows built from option-chain API responses."""
-        db.query(Contract).filter(Contract.exchange == 'NSE').delete()
+        db = SessionLocal()
+        try:
+            db.query(Contract).filter(Contract.exchange == 'NSE').delete()
 
-        count = 0
-        for _, row in df.iterrows():
-            try:
-                symbol = row["symbol"]
-                expiry_dt = self._parse_date(row.get("expiry_str", ""))
+            count = 0
+            for _, row in df.iterrows():
+                try:
+                    symbol = row["symbol"]
+                    expiry_dt = self._parse_date(row.get("expiry_str", ""))
 
-                weekly_monthly = (
-                    "MONTHLY" if expiry_dt and ExpiryService.is_monthly_expiry(expiry_dt) else "WEEKLY"
-                )
+                    weekly_monthly = (
+                        "MONTHLY" if expiry_dt and ExpiryService.is_monthly_expiry(expiry_dt) else "WEEKLY"
+                    )
 
-                db.add(Contract(
-                    exchange="NSE",
-                    segment="FO",
-                    symbol=symbol,
-                    trading_symbol=row.get("trading_symbol", ""),
-                    underlying=row.get("underlying", symbol),
-                    expiry=expiry_dt,
-                    strike=float(row.get("strike", 0)),
-                    option_type=row.get("option_type", "XX"),
-                    instrument_type=row.get("instrument_type", ""),
-                    lot_size=lot_map.get(symbol, 0),
-                    freeze_qty=0,
-                    token="",
-                    weekly_monthly_flag=weekly_monthly,
-                ))
-                count += 1
-            except Exception:
-                continue
+                    db.add(Contract(
+                        exchange="NSE",
+                        segment="FO",
+                        symbol=symbol,
+                        trading_symbol=row.get("trading_symbol", ""),
+                        underlying=row.get("underlying", symbol),
+                        expiry=expiry_dt,
+                        strike=float(row.get("strike", 0)),
+                        option_type=row.get("option_type", "XX"),
+                        instrument_type=row.get("instrument_type", ""),
+                        lot_size=lot_map.get(symbol, 0),
+                        freeze_qty=0,
+                        token="",
+                        weekly_monthly_flag=weekly_monthly,
+                    ))
+                    count += 1
+                except Exception:
+                    continue
 
-        db.commit()
-        LOGGER.info("saved_from_chains", count=count)
-        return count
+            db.commit()
+            LOGGER.info("saved_from_chains", count=count)
+            return count
+        except Exception as e:
+            db.rollback()
+            LOGGER.exception("save_from_chains_failed", error=str(e))
+            raise
+        finally:
+            db.close()
 
-    def _save_bse_contracts(self, db: Session, broker=None) -> int:
+    def _save_bse_contracts(self, arg1=None, arg2=None) -> int:
         """
         Parse SENSEX and BANKEX contracts from BSE F&O scrip master CSV.
-        If broker is provided, it tries to download/fetch the scrip master file first.
-        Otherwise, it falls back to parsing the existing data/scrip_master/bse_fo.csv file.
+        Supports both signatures:
+          - _save_bse_contracts(self, broker=None)
+          - _save_bse_contracts(self, db, broker=None)
         """
+        db_passed = None
+        broker = None
+        
+        if arg2 is not None:
+            db_passed = arg1
+            broker = arg2
+        elif arg1 is not None:
+            # Check if arg1 is a database session
+            if hasattr(arg1, "commit") and hasattr(arg1, "rollback"):
+                db_passed = arg1
+            else:
+                broker = arg1
+
         try:
             csv_path = None
             if broker:
@@ -259,56 +273,65 @@ class DailySync:
                     return "FUTIDX"
                 return inst
 
-            db.query(Contract).filter(Contract.exchange == 'BSE').delete()
-            
-            count = 0
-            for _, row in bse_df.iterrows():
-                try:
-                    symbol = str(row.get("pSymbolName")).strip().upper()
-                    trading_sym = str(row.get("pTrdSymbol") or row.get("pTrdSymbolName")).strip()
-                    token = str(row.get("pSymbol") or row.get("token")).strip()
-                    
-                    # Parse Expiry (BSE uses standard Unix timestamp: seconds since 1970)
-                    raw_expiry = int(row.get("pExpiryDate") or row.get("lExpiryDate ") or row.get("lExpiryDate") or 0)
-                    if not raw_expiry:
+            db = db_passed if db_passed is not None else SessionLocal()
+            try:
+                db.query(Contract).filter(Contract.exchange == 'BSE').delete()
+                
+                count = 0
+                for _, row in bse_df.iterrows():
+                    try:
+                        symbol = str(row.get("pSymbolName")).strip().upper()
+                        trading_sym = str(row.get("pTrdSymbol") or row.get("pTrdSymbolName")).strip()
+                        token = str(row.get("pSymbol") or row.get("token")).strip()
+                        
+                        # Parse Expiry (BSE uses standard Unix timestamp: seconds since 1970)
+                        raw_expiry = int(row.get("pExpiryDate") or row.get("lExpiryDate ") or row.get("lExpiryDate") or 0)
+                        if not raw_expiry:
+                            continue
+                        
+                        from datetime import timezone
+                        expiry_dt = datetime.fromtimestamp(raw_expiry, timezone.utc).date()
+                        
+                        # Parse Strike (paise -> rupees)
+                        strike_col = "dStrikePrice;" if "dStrikePrice;" in row else "dStrikePrice"
+                        raw_strike = float(row.get(strike_col, 0))
+                        strike = raw_strike / 100.0
+                        
+                        opt_type = get_option_type(row)
+                        inst_type = get_inst_type(row)
+                        lot_size = int(row.get("lLotSize") or row.get("lotSize") or 0)
+                        
+                        weekly_monthly = "MONTHLY" if expiry_dt.day > 24 else "WEEKLY"
+                        
+                        db.add(Contract(
+                            exchange="BSE",
+                            segment="FO",
+                            symbol=symbol,
+                            trading_symbol=trading_sym,
+                            underlying=symbol,
+                            expiry=expiry_dt,
+                            strike=strike,
+                            option_type=opt_type,
+                            instrument_type=inst_type,
+                            lot_size=lot_size,
+                            freeze_qty=0,
+                            token=token,
+                            weekly_monthly_flag=weekly_monthly,
+                        ))
+                        count += 1
+                    except Exception as e:
                         continue
-                    
-                    from datetime import timezone
-                    expiry_dt = datetime.fromtimestamp(raw_expiry, timezone.utc).date()
-                    
-                    # Parse Strike (paise -> rupees)
-                    strike_col = "dStrikePrice;" if "dStrikePrice;" in row else "dStrikePrice"
-                    raw_strike = float(row.get(strike_col, 0))
-                    strike = raw_strike / 100.0
-                    
-                    opt_type = get_option_type(row)
-                    inst_type = get_inst_type(row)
-                    lot_size = int(row.get("lLotSize") or row.get("lotSize") or 0)
-                    
-                    weekly_monthly = "MONTHLY" if expiry_dt.day > 24 else "WEEKLY"
-                    
-                    db.add(Contract(
-                        exchange="BSE",
-                        segment="FO",
-                        symbol=symbol,
-                        trading_symbol=trading_sym,
-                        underlying=symbol,
-                        expiry=expiry_dt,
-                        strike=strike,
-                        option_type=opt_type,
-                        instrument_type=inst_type,
-                        lot_size=lot_size,
-                        freeze_qty=0,
-                        token=token,
-                        weekly_monthly_flag=weekly_monthly,
-                    ))
-                    count += 1
-                except Exception as e:
-                    continue
-            
-            db.commit()
-            LOGGER.info("saved_bse_contracts", count=count)
-            return count
+                
+                db.commit()
+                LOGGER.info("saved_bse_contracts", count=count)
+                return count
+            except Exception as exc:
+                db.rollback()
+                LOGGER.exception("bse_sync_exception_writing", error=str(exc))
+                return 0
+            finally:
+                if db_passed is None:
+                    db.close()
         except Exception as exc:
             LOGGER.exception("bse_sync_exception", error=str(exc))
             return 0
@@ -326,7 +349,18 @@ class DailySync:
         return None
 
     @staticmethod
-    def _log_sync(db: Session, status: str, message: str) -> None:
+    def _log_sync(status: str, message: str) -> None:
+        db = SessionLocal()
+        try:
+            db.add(SyncLog(sync_type="DAILY", status=status, message=message[:250]))
+            db.commit()
+        except Exception:
+            db.rollback()
+        finally:
+            db.close()
+
+    @staticmethod
+    def _log_sync_internal(db: Session, status: str, message: str) -> None:
         db.add(SyncLog(sync_type="DAILY", status=status, message=message[:250]))
         try:
             db.commit()

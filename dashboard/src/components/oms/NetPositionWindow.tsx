@@ -36,8 +36,8 @@ export const NetPositionWindow: React.FC = () => {
   // Helper to calculate At-The-Money (ATM) strike price based on live spot prices
   const getAtmStrike = (sym: string) => {
     const upperSym = sym.toUpperCase();
-    const niftySpot = useTerminalStore.getState().niftySpot || 24000;
-    const bankNiftySpot = useTerminalStore.getState().bankNiftySpot || 55100;
+    const niftySpot = useTerminalStore.getState().niftySpot || 0;
+    const bankNiftySpot = useTerminalStore.getState().bankNiftySpot || 0;
     
     if (upperSym.startsWith('NIFTY')) {
       return Math.round(niftySpot / 50) * 50;
@@ -48,11 +48,13 @@ export const NetPositionWindow: React.FC = () => {
     } else if (upperSym.startsWith('MIDCPNIFTY')) {
       return Math.round(niftySpot / 25) * 25;
     } else if (upperSym.startsWith('SENSEX')) {
-      return Math.round(78000 / 100) * 100;
+      const sensexSpot = useTerminalStore.getState().sensex?.ltp || 0;
+      return Math.round(sensexSpot / 100) * 100;
     } else if (upperSym.startsWith('BANKEX')) {
-      return Math.round(55100 / 100) * 100;
+      const bankexSpot = useTerminalStore.getState().bankex?.ltp || 0;
+      return Math.round(bankexSpot / 100) * 100;
     }
-    return 2500; // Default for stock options (like RELIANCE)
+    return 0; // Default for stock options (like RELIANCE)
   };
 
   // Sync Quantity, Bid/Ask Price, and ATM Strike when Segment, Symbol, or Side changes
@@ -77,20 +79,7 @@ export const NetPositionWindow: React.FC = () => {
     const liveMatch = mw.find((item: any) => item.symbol === symbol) || 
                       positions.find((item: any) => item.symbol === symbol);
 
-    let defaultPrice = 2500;
-    if (segment === Segment.EQ) {
-      if (symbol === 'RELIANCE') defaultPrice = 2500;
-      else if (symbol === 'INFY') defaultPrice = 1500;
-      else if (symbol === 'TCS') defaultPrice = 3800;
-      else defaultPrice = 100;
-    } else if (segment === Segment.FUT) {
-      if (symbol.startsWith('NIFTY')) defaultPrice = 23900;
-      else if (symbol.startsWith('BANKNIFTY')) defaultPrice = 55000;
-      else if (symbol.startsWith('SENSEX')) defaultPrice = 78000;
-      else defaultPrice = 1000;
-    } else { // Segment.OPT
-      defaultPrice = 150;
-    }
+    let defaultPrice = 0;
 
     if (liveMatch) {
       // In trading:
@@ -159,61 +148,7 @@ export const NetPositionWindow: React.FC = () => {
     updateMarketPrice(ltpUpdateKey, ltpUpdateValue);
   };
 
-  // Preset scenarios to make testing a breeze
-  const runPresetScenario = (type: string) => {
-    clearAll();
-    const now = Date.now();
-    const mockInstrumentEQ = { symbol: 'INFY', segment: Segment.EQ };
-    const mockInstrumentFUT = { symbol: 'NIFTY', segment: Segment.FUT, expiry: '30JUN2026' };
-    const mockInstrumentOPT = { symbol: 'BANKNIFTY', segment: Segment.OPT, expiry: '30JUN2026', strikePrice: 52000, optionType: OptionType.CE };
 
-    if (type === 'fifo_match') {
-      // Scenario 1: FIFO partial square off and profit taking
-      const key = generatePositionKey(mockInstrumentEQ);
-      
-      const f1: Fill = { id: 'f1', orderId: 'o1', instrument: mockInstrumentEQ, side: Side.BUY, qty: 100, price: 1500, timestamp: now };
-      const f2: Fill = { id: 'f2', orderId: 'o2', instrument: mockInstrumentEQ, side: Side.SELL, qty: 60, price: 1550, timestamp: now + 1000 };
-      const f3: Fill = { id: 'f3', orderId: 'o3', instrument: mockInstrumentEQ, side: Side.SELL, qty: 40, price: 1580, timestamp: now + 2000 };
-      
-      [f1, f2, f3].forEach((f) => {
-        addOrder({ id: f.orderId, instrument: f.instrument, side: f.side, qty: f.qty, price: f.price, status: OrderStatus.FILLED, timestamp: f.timestamp });
-        addFill(f);
-      });
-      updateMarketPrice(key, 1580);
-
-    } else if (type === 'position_flip') {
-      // Scenario 2: Position Flipping (Long to Short)
-      const key = generatePositionKey(mockInstrumentFUT);
-      
-      const f1: Fill = { id: 'f1', orderId: 'o1', instrument: mockInstrumentFUT, side: Side.BUY, qty: 50, price: 23000, timestamp: now };
-      const f2: Fill = { id: 'f2', orderId: 'o2', instrument: mockInstrumentFUT, side: Side.SELL, qty: 120, price: 23100, timestamp: now + 1000 };
-      
-      [f1, f2].forEach((f) => {
-        addOrder({ id: f.orderId, instrument: f.instrument, side: f.side, qty: f.qty, price: f.price, status: OrderStatus.FILLED, timestamp: f.timestamp });
-        addFill(f);
-      });
-      updateMarketPrice(key, 23080); // Current LTP is 23080, showing short position profit/loss
-
-    } else if (type === 'option_multisegment') {
-      // Scenario 3: Multi-segment options and futures
-      const keyOpt = generatePositionKey(mockInstrumentOPT);
-      const keyFut = generatePositionKey(mockInstrumentFUT);
-
-      const f1: Fill = { id: 'f1', orderId: 'o1', instrument: mockInstrumentOPT, side: Side.BUY, qty: 15, price: 350, timestamp: now };
-      const f2: Fill = { id: 'f2', orderId: 'o2', instrument: mockInstrumentOPT, side: Side.BUY, qty: 30, price: 380, timestamp: now + 500 };
-      const f3: Fill = { id: 'f3', orderId: 'o3', instrument: mockInstrumentOPT, side: Side.SELL, qty: 25, price: 410, timestamp: now + 1000 };
-
-      const f4: Fill = { id: 'f4', orderId: 'o4', instrument: mockInstrumentFUT, side: Side.SELL, qty: 50, price: 23200, timestamp: now + 1500 };
-
-      [f1, f2, f3, f4].forEach((f) => {
-        addOrder({ id: f.orderId, instrument: f.instrument, side: f.side, qty: f.qty, price: f.price, status: OrderStatus.FILLED, timestamp: f.timestamp });
-        addFill(f);
-      });
-
-      updateMarketPrice(keyOpt, 420);
-      updateMarketPrice(keyFut, 23150);
-    }
-  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -408,29 +343,7 @@ export const NetPositionWindow: React.FC = () => {
             </button>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-800">
-            <span className="block text-slate-400 text-xs font-semibold mb-2">{t('runPresetScenario')}</span>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => runPresetScenario('fifo_match')}
-                className="bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold py-1 px-3 rounded text-xs text-left transition"
-              >
-                {t('fifoPositionMatching')}
-              </button>
-              <button
-                onClick={() => runPresetScenario('position_flip')}
-                className="bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold py-1 px-3 rounded text-xs text-left transition"
-              >
-                {t('positionFlipLongShort')}
-              </button>
-              <button
-                onClick={() => runPresetScenario('option_multisegment')}
-                className="bg-slate-800 hover:bg-slate-700 text-indigo-300 font-bold py-1 px-3 rounded text-xs text-left transition"
-              >
-                {t('multiSegmentOptFut')}
-              </button>
-            </div>
-          </div>
+
         </div>
       </div>
     </div>

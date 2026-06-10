@@ -84,29 +84,29 @@ export function useLiveData() {
         if (niftyData) {
           useTerminalStore.getState().setNifty({
             ltp: niftyData.ltp,
-            change: niftyData.change !== undefined ? niftyData.change : -23.85,
-            percentChange: niftyData.percent_change !== undefined ? niftyData.percent_change : -0.10
+            change: niftyData.change ?? 0,
+            percentChange: niftyData.percent_change ?? 0
           });
         }
         if (bankniftyData) {
           useTerminalStore.getState().setBankNifty({
             ltp: bankniftyData.ltp,
-            change: bankniftyData.change !== undefined ? bankniftyData.change : 154.20,
-            percentChange: bankniftyData.percent_change !== undefined ? bankniftyData.percent_change : 0.28
+            change: bankniftyData.change ?? 0,
+            percentChange: bankniftyData.percent_change ?? 0
           });
         }
         if (sensexData) {
           useTerminalStore.getState().setSensex({
             ltp: sensexData.ltp,
-            change: sensexData.change !== undefined ? sensexData.change : -120.50,
-            percentChange: sensexData.percent_change !== undefined ? sensexData.percent_change : -0.15
+            change: sensexData.change ?? 0,
+            percentChange: sensexData.percent_change ?? 0
           });
         }
         if (indiavixData) {
           useTerminalStore.getState().setIndiaVix({
             ltp: indiavixData.ltp,
-            change: indiavixData.change !== undefined ? indiavixData.change : 0.15,
-            percentChange: indiavixData.percent_change !== undefined ? indiavixData.percent_change : 1.22
+            change: indiavixData.change ?? 0,
+            percentChange: indiavixData.percent_change ?? 0
           });
         }
 

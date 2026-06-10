@@ -11,9 +11,17 @@ const WS_URL = getWsUrl('/ws/live-feed');
 export const useTickStream = () => {
   const updateTick = useTerminalStore((state) => state.updateTick);
   const updateMarketWatchTick = useTerminalStore((state) => state.updateMarketWatchTick);
+  const marketWatch = useTerminalStore((state) => state.marketWatch);
   const wsRef = useRef(null);
   const reconnectTimerRef = useRef(null);
+  const marketWatchRef = useRef(marketWatch);
 
+  // Keep ref updated with latest marketWatch value
+  useEffect(() => {
+    marketWatchRef.current = marketWatch;
+  }, [marketWatch]);
+
+  // Handle connection and message dispatch
   useEffect(() => {
     const connect = () => {
       if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -23,6 +31,12 @@ export const useTickStream = () => {
 
       ws.onopen = () => {
         console.log('[TickStream] Connected to live feed');
+        const currentMw = marketWatchRef.current;
+        if (currentMw && currentMw.length > 0) {
+          const symbols = currentMw.map(i => i.symbol);
+          ws.send(JSON.stringify({ action: 'subscribe', symbols }));
+          console.log('[TickStream] Sent initial subscription for:', symbols);
+        }
       };
 
       ws.onmessage = (event) => {
@@ -55,4 +69,22 @@ export const useTickStream = () => {
       if (wsRef.current) wsRef.current.close();
     };
   }, [updateTick, updateMarketWatchTick]);
+
+  // Dynamically update subscriptions when marketWatch changes (debounced by 250ms)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        if (marketWatch && marketWatch.length > 0) {
+          const symbols = marketWatch.map(i => i.symbol);
+          wsRef.current.send(JSON.stringify({ action: 'subscribe', symbols }));
+          console.log('[TickStream] Sent dynamic subscription update for:', symbols);
+        }
+      }
+    }, 250);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [marketWatch]);
 };
+

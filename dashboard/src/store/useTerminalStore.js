@@ -12,12 +12,12 @@ export const useTerminalStore = create((set, get) => ({
   addedSymbols: savedSymbols,
   availableMargin: 0,
   marginUsed: 0,
-  niftySpot: 23985.0,
-  bankNiftySpot: 55138.0,
-  nifty: { ltp: 23985.0, change: -23.85, percentChange: -0.10 },
-  banknifty: { ltp: 55138.0, change: 154.20, percentChange: 0.28 },
-  sensex: { ltp: 78500.0, change: -120.50, percentChange: -0.15 },
-  indiavix: { ltp: 12.45, change: 0.15, percentChange: 1.22 },
+  niftySpot: 0.0,
+  bankNiftySpot: 0.0,
+  nifty: { ltp: 0.0, change: 0.0, percentChange: 0.0 },
+  banknifty: { ltp: 0.0, change: 0.0, percentChange: 0.0 },
+  sensex: { ltp: 0.0, change: 0.0, percentChange: 0.0 },
+  indiavix: { ltp: 0.0, change: 0.0, percentChange: 0.0 },
   activeView: 'terminal', // 'terminal' or 'oms'
   setActiveView: (activeView) => set({ activeView }),
 

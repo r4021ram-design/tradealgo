@@ -129,6 +129,7 @@ class PositionTracker:
         self._snapshot_dir.mkdir(parents=True, exist_ok=True)
         self._consecutive_poll_failures = 0
         self._symbol_last_update: dict[str, float] = {}
+        self.watchlist_map: dict[str, str] = {}
 
     @property
     def consecutive_poll_failures(self) -> int:
@@ -184,6 +185,8 @@ class PositionTracker:
         ask: float | None,
         change: float | None = None,
         percent_change: float | None = None,
+        close: float | None = None,
+        volume: int | None = None,
     ) -> None:
         key = trading_symbol or instrument_token
         if key is None:
@@ -209,6 +212,10 @@ class PositionTracker:
             payload["change"] = change
         if percent_change is not None:
             payload["percent_change"] = percent_change
+        if close is not None:
+            payload["close"] = close
+        if volume is not None:
+            payload["volume"] = volume
         
         # Calculate Greeks for Options
         if trading_symbol:
@@ -346,13 +353,14 @@ class PositionTracker:
             if leg.get("status") != "OPEN":
                 continue
             entry = float(leg.get("entry_price", 0.0))
-            ltp = self.ltp(symbol)
+            ltp = self.ltp(symbol) or entry
             qty = int(leg.get("quantity", 0))
             if leg.get("side") == "LONG":
                 total += (ltp - entry) * qty
             else:
                 total += (entry - ltp) * qty
         return total
+
 
     def net_premium_received(self) -> float:
         return sum(self.strategy_net_premium.values())
@@ -427,79 +435,95 @@ class PositionTracker:
             
             for symbol in ("NIFTY", "BANKNIFTY", "SENSEX", "BANKEX", "INDIA VIX"):
                 if symbol == "INDIA VIX":
-                    import random
-                    base_vix = 12.45
-                    vix_change = round(random.uniform(-0.1, 0.1), 2)
-                    vix_ltp = round(base_vix + vix_change, 2)
-                    vix_prev_close = 12.30
-                    vix_pct = round((vix_ltp - vix_prev_close) / vix_prev_close * 100.0, 2)
-                    self.update_market_data(
-                        trading_symbol="INDIA VIX",
-                        instrument_token="26017",
-                        ltp=vix_ltp,
-                        bid=vix_ltp - 0.05,
-                        ask=vix_ltp + 0.05,
-                        change=round(vix_ltp - vix_prev_close, 2),
-                        percent_change=vix_pct
-                    )
+                    try:
+                        vix_quotes = self.client_provider.quotes(
+                            instrument_tokens=[{"instrument_token": "26017", "exchange_segment": "nse_cm"}],
+                            is_index=True
+                        )
+                        if vix_quotes:
+                            vix_messages = []
+                            if isinstance(vix_quotes, list):
+                                vix_messages = vix_quotes
+                            elif isinstance(vix_quotes, dict):
+                                vix_messages = vix_quotes.get("message", [])
+                                if not isinstance(vix_messages, list):
+                                    vix_messages = [vix_messages]
+                            for vmsg in vix_messages:
+                                if isinstance(vmsg, dict):
+                                    vix_ltp = float(vmsg.get("last_traded_price") or vmsg.get("ltp") or 0.0)
+                                    if vix_ltp > 0:
+                                        vix_close = float((vmsg.get("ohlc") or {}).get("close") or (vmsg.get("ohlc") or {}).get("c") or 0.0)
+                                        vix_chg = float(vmsg.get("netChange") or vmsg.get("nc") or vmsg.get("cng") or 0.0)
+                                        vix_pct = float(vmsg.get("percentChange") or vmsg.get("pc") or 0.0)
+                                        if vix_chg == 0.0 and vix_close > 0:
+                                            vix_chg = vix_ltp - vix_close
+                                        if vix_pct == 0.0 and vix_close > 0:
+                                            vix_pct = (vix_chg / vix_close) * 100.0
+                                        self.update_market_data(
+                                            trading_symbol="INDIA VIX",
+                                            instrument_token="26017",
+                                            ltp=vix_ltp,
+                                            bid=vix_ltp - 0.05,
+                                            ask=vix_ltp + 0.05,
+                                            change=round(vix_chg, 2),
+                                            percent_change=round(vix_pct, 2)
+                                        )
+                                        break
+                    except Exception as e:
+                        self.logger.warning("failed_to_fetch_vix_quote", error=str(e))
                     continue
 
-                exg_seg = "bse_fo" if symbol in ("SENSEX", "BANKEX") else "nse_fo"
-                cursor.execute(
-                    "SELECT token FROM contracts WHERE symbol = ? AND instrument_type = 'FUTIDX' AND expiry >= DATE('now') ORDER BY expiry ASC LIMIT 1",
-                    (symbol,)
-                )
-                row = cursor.fetchone()
-                if row:
-                    token = row[0]
-                    try:
-                        quotes = self.client_provider.quotes(instrument_tokens=[{"instrument_token": token, "exchange_segment": exg_seg}])
-                        if quotes:
-                            messages = []
-                            if isinstance(quotes, list):
-                                messages = quotes
-                            elif isinstance(quotes, dict):
-                                messages = quotes.get("message", [])
-                                if not isinstance(messages, list):
-                                    messages = [messages]
-                            
-                            for msg in messages:
-                                if isinstance(msg, dict) and str(msg.get("instrument_token") or msg.get("tk") or msg.get("exchange_token")) == str(token):
-                                    ltp = float(msg.get("last_traded_price") or msg.get("ltp") or 0.0)
-                                    if ltp > 0:
-                                        ohlc = msg.get("ohlc", {})
-                                        close_px = float(ohlc.get("close") or ohlc.get("c") or 0.0)
-                                        
-                                        change = float(msg.get("netChange") or msg.get("nc") or msg.get("chg") or 0.0)
-                                        percent_change = float(msg.get("percentChange") or msg.get("pc") or 0.0)
-                                        
-                                        if change == 0.0 and close_px > 0.0:
-                                            change = ltp - close_px
-                                        if percent_change == 0.0 and close_px > 0.0:
-                                            percent_change = (change / close_px) * 100.0
-                                            
-                                        # Default fallbacks if they are still 0
-                                        if change == 0.0:
-                                            defaults = {
-                                                "NIFTY": (-23.85, -0.10),
-                                                "BANKNIFTY": (154.20, 0.28),
-                                                "SENSEX": (-120.50, -0.15),
-                                                "BANKEX": (110.20, 0.22)
-                                            }
-                                            if symbol in defaults:
-                                                change, percent_change = defaults[symbol]
-                                                
-                                        self.update_market_data(
-                                            trading_symbol=symbol,
-                                            instrument_token=token,
-                                            ltp=ltp,
-                                            bid=ltp - 0.05,
-                                            ask=ltp + 0.05,
-                                            change=round(change, 2),
-                                            percent_change=round(percent_change, 2)
-                                        )
-                    except Exception as e:
-                        self.logger.warning("failed_to_fetch_index_spot_quote", symbol=symbol, error=str(e))
+                # Spot index token mapping (not futures)
+                index_tokens = {
+                    "NIFTY": ("26000", "nse_cm"),
+                    "BANKNIFTY": ("26009", "nse_cm"),
+                    "SENSEX": ("1", "bse_cm"),
+                    "BANKEX": ("12", "bse_cm"),
+                }
+                if symbol not in index_tokens:
+                    continue
+                token, exg_seg = index_tokens[symbol]
+                try:
+                    quotes = self.client_provider.quotes(
+                        instrument_tokens=[{"instrument_token": token, "exchange_segment": exg_seg}],
+                        is_index=True
+                    )
+                    if quotes:
+                        messages = []
+                        if isinstance(quotes, list):
+                            messages = quotes
+                        elif isinstance(quotes, dict):
+                            messages = quotes.get("message", [])
+                            if not isinstance(messages, list):
+                                messages = [messages]
+                        
+                        for msg in messages:
+                            if isinstance(msg, dict):
+                                ltp = float(msg.get("last_traded_price") or msg.get("ltp") or 0.0)
+                                if ltp > 0:
+                                    ohlc = msg.get("ohlc", {})
+                                    close_px = float(ohlc.get("close") or ohlc.get("c") or 0.0)
+                                    
+                                    change = float(msg.get("netChange") or msg.get("nc") or msg.get("cng") or 0.0)
+                                    percent_change = float(msg.get("percentChange") or msg.get("pc") or 0.0)
+                                    
+                                    if change == 0.0 and close_px > 0.0:
+                                        change = ltp - close_px
+                                    if percent_change == 0.0 and close_px > 0.0:
+                                        percent_change = (change / close_px) * 100.0
+                                    
+                                    self.update_market_data(
+                                        trading_symbol=symbol,
+                                        instrument_token=token,
+                                        ltp=ltp,
+                                        bid=ltp - 0.05,
+                                        ask=ltp + 0.05,
+                                        change=round(change, 2),
+                                        percent_change=round(percent_change, 2)
+                                    )
+                                    break
+                except Exception as e:
+                    self.logger.warning("failed_to_fetch_index_spot_quote", symbol=symbol, error=str(e))
             conn.close()
         except Exception as exc:
             self.logger.warning("failed_to_update_index_spots", error=str(exc))

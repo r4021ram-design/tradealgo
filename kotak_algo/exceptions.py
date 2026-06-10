@@ -186,18 +186,27 @@ def looks_like_session_expired(response: Any) -> bool:
             response.get("message"),
             response.get("detail"),
         ]
+        fault = response.get("fault")
+        if isinstance(fault, dict):
+            err_fields.append(fault.get("code"))
+            err_fields.append(fault.get("message"))
+            err_fields.append(fault.get("description"))
+
         for val in err_fields:
             if val:
                 val_str = str(val).lower()
                 if any(sig in val_str for sig in SESSION_EXPIRED_SIGNALS):
                     return True
-        # Check string values in the dictionary
-        for v in response.values():
-            if isinstance(v, str):
-                v_str = v.lower()
-                if any(sig in v_str for sig in SESSION_EXPIRED_SIGNALS):
-                    return True
         return False
 
+    # If it is a list, check individual items recursively instead of stringifying the entire list
+    if isinstance(response, list):
+        return any(looks_like_session_expired(item) for item in response)
+
     text = str(response).lower()
+    # If the text is long, don't do a broad check for "401" or "403" to avoid false positives in data payloads
+    if len(text) > 500:
+        safe_signals = SESSION_EXPIRED_SIGNALS - {"401", "403"}
+        return any(sig in text for sig in safe_signals)
+
     return any(sig in text for sig in SESSION_EXPIRED_SIGNALS)

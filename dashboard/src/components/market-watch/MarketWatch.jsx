@@ -72,7 +72,7 @@ export const MarketWatch = () => {
       }
     },
     { 
-      field: 'change', 
+      field: 'percent_change', 
       headerName: '% Chg', 
       width: 80, 
       type: 'numericColumn',

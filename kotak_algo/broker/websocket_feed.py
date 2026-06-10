@@ -48,6 +48,22 @@ class WebSocketFeed:
     def start(self) -> None:
         self._should_run = True
         
+        # Apply SDK monkey-patch to prevent duplicate websocket threads
+        try:
+            import neo_api_client
+            if hasattr(neo_api_client, "NeoWebSocket"):
+                def patched_start_websocket_thread(ws_self):
+                    if hasattr(ws_self, "hsw_thread") and ws_self.hsw_thread and ws_self.hsw_thread.is_alive():
+                        self.logger.info("sdk_websocket_thread_already_running_skipping_spawn")
+                        return
+                    import threading as py_threading
+                    ws_self.hsw_thread = py_threading.Thread(target=ws_self.start_websocket)
+                    ws_self.hsw_thread.start()
+                neo_api_client.NeoWebSocket.start_websocket_thread = patched_start_websocket_thread
+                self.logger.info("sdk_websocket_thread_patched")
+        except Exception as patch_err:
+            self.logger.error("failed_to_patch_sdk_websocket", error=str(patch_err))
+        
         # Register for re-authentication notifications from the broker
         self.broker.register_reauth_listener(self._on_reauth)
         
@@ -81,11 +97,7 @@ class WebSocketFeed:
         if self._subscribed:
             self.logger.info("re_subscribing_after_reauth", count=len(self._subscribed))
             try:
-                new_client.subscribe(
-                    instrument_tokens=list(self._subscribed.values()),
-                    isIndex=False,
-                    isDepth=False,
-                )
+                self._execute_subscribe(new_client, list(self._subscribed.values()))
             except Exception as e:
                 self.logger.error("re_subscribe_failed_after_reauth", error=str(e))
                 
@@ -100,6 +112,35 @@ class WebSocketFeed:
         self.connected = False
         self.logger.info("websocket_stopped")
 
+    def _execute_subscribe(self, client: Any, tokens: list[dict[str, str]]) -> None:
+        if not tokens:
+            return
+        
+        index_tokens = []
+        non_index_tokens = []
+        index_set = {"26000", "26009", "1", "12", "26017", "26067"}
+        
+        for token in tokens:
+            if token.get("instrument_token") in index_set:
+                index_tokens.append(token)
+            else:
+                non_index_tokens.append(token)
+                
+        if index_tokens:
+            client.subscribe(
+                instrument_tokens=index_tokens,
+                isIndex=True,
+                isDepth=False,
+            )
+            self.logger.info("websocket_subscribed_indices", count=len(index_tokens))
+        if non_index_tokens:
+            client.subscribe(
+                instrument_tokens=non_index_tokens,
+                isIndex=False,
+                isDepth=False,
+            )
+            self.logger.info("websocket_subscribed_non_indices", count=len(non_index_tokens))
+
     def subscribe(self, tokens: list[dict[str, str]]) -> None:
         if not tokens:
             return
@@ -108,12 +149,7 @@ class WebSocketFeed:
             self._subscribed[token_key] = token
         unique_tokens = list(self._subscribed.values())
         try:
-            self.broker.client.subscribe(
-                instrument_tokens=unique_tokens,
-                isIndex=False,
-                isDepth=False,
-            )
-            self.logger.info("websocket_subscribed", count=len(unique_tokens))
+            self._execute_subscribe(self.broker.client, unique_tokens)
         except Exception as exc:
             self.logger.error("subscribe_failed", error=str(exc))
 
@@ -121,13 +157,66 @@ class WebSocketFeed:
 
     def on_message(self, message: Any) -> None:
         self._last_message_time = time.monotonic()
+        
+        # Handle wrapped stock feed list or quotes list from the Kotak SDK
+        if isinstance(message, dict) and message.get("type") in ("stock_feed", "quotes") and isinstance(message.get("data"), list):
+            for tick in message["data"]:
+                try:
+                    self.on_message(tick)
+                except Exception as tick_err:
+                    self.logger.error("error_processing_individual_tick", error=str(tick_err))
+            return
+
+        self.logger.info("raw_websocket_tick_received", msg=str(message))
         parsed = self._extract_market_data(message)
         if not parsed:
             return
 
+        token = parsed.get("instrument_token")
+        if token and hasattr(self.position_tracker, "watchlist_map") and token in self.position_tracker.watchlist_map:
+            mapped_sym = self.position_tracker.watchlist_map[token]
+            parsed["trading_symbol"] = mapped_sym
+
         symbol = parsed.get("trading_symbol") or parsed.get("instrument_token")
         if not symbol:
             return
+
+        # Fetch previous values from tracker to support partial/differential updates
+        prev_data = self.position_tracker.market_data.get(symbol, {})
+        
+        ltp = parsed.get("ltp")
+        if ltp is None or ltp == 0.0:
+            ltp = prev_data.get("ltp")
+            
+        bid = parsed.get("bid")
+        if bid is None or bid == 0.0:
+            bid = prev_data.get("bid")
+            
+        ask = parsed.get("ask")
+        if ask is None or ask == 0.0:
+            ask = prev_data.get("ask")
+
+        # If we still don't have a valid LTP, we cannot process this tick
+        if ltp is None or ltp <= 0.0:
+            return
+
+        # Update parsed dictionary with merged values
+        parsed["ltp"] = ltp
+        parsed["bid"] = bid
+        parsed["ask"] = ask
+
+        # Merge change/percent_change from previous data if not in this tick
+        change = parsed.get("change")
+        if change is None:
+            prev_change = prev_data.get("change")
+            if prev_change is not None:
+                parsed["change"] = prev_change
+
+        pct_change = parsed.get("percent_change")
+        if pct_change is None:
+            prev_pct = prev_data.get("percent_change")
+            if prev_pct is not None:
+                parsed["percent_change"] = prev_pct
 
         # --- Tick Deduplication ---
         # We use LTP + Bid + Ask + Volume (if available) to detect duplicates
@@ -143,7 +232,6 @@ class WebSocketFeed:
         self._symbol_last_payload[symbol] = current_payload
 
         # Validate tick data
-        ltp = parsed.get("ltp", 0.0)
         prev_ltp = self.position_tracker.ltp(symbol)
 
         try:
@@ -178,11 +266,7 @@ class WebSocketFeed:
         if self._subscribed:
             self.logger.info("re_subscribing_after_reconnect", count=len(self._subscribed))
             try:
-                self.broker.client.subscribe(
-                    instrument_tokens=list(self._subscribed.values()),
-                    isIndex=False,
-                    isDepth=False,
-                )
+                self._execute_subscribe(self.broker.client, list(self._subscribed.values()))
             except Exception as exc:
                 self.logger.error("re_subscribe_failed", error=str(exc))
 
@@ -231,11 +315,7 @@ class WebSocketFeed:
             
             if self._subscribed:
                 self.logger.info("re_subscribing_in_reconnect", count=len(self._subscribed))
-                client.subscribe(
-                    instrument_tokens=list(self._subscribed.values()),
-                    isIndex=False,
-                    isDepth=False,
-                )
+                self._execute_subscribe(client, list(self._subscribed.values()))
             
             self.logger.info("reconnect_callbacks_re_registered")
             event_bus.publish(Event(EventNames.RECONNECT_SUCCEEDED))
@@ -304,19 +384,32 @@ class WebSocketFeed:
             return None
 
         symbol = message.get("trading_symbol") or message.get("ts") or message.get("symbol")
-        token = message.get("instrument_token") or message.get("token")
-        ltp = message.get("ltp") or message.get("last_traded_price") or message.get("lastPrice")
-        bid = message.get("best_bid_price") or message.get("bid")
-        ask = message.get("best_ask_price") or message.get("ask")
+        token = message.get("instrument_token") or message.get("tk") or message.get("token")
+        ltp = message.get("ltp") or message.get("iv") or message.get("last_traded_price") or message.get("lastPrice")
+        bid = message.get("best_bid_price") or message.get("bp") or message.get("bid")
+        ask = message.get("best_ask_price") or message.get("sp") or message.get("ask")
+        change = message.get("cng") or message.get("change") or message.get("netChange")
+        percent_change = message.get("nc") or message.get("percent_change") or message.get("percentChange")
+        close = message.get("c") or message.get("close") or message.get("prev_close")
+        volume = message.get("v") or message.get("volume")
         if symbol is None and token is None:
             return None
-        return {
+        result = {
             "trading_symbol": symbol,
             "instrument_token": str(token) if token is not None else None,
-            "ltp": float(ltp) if ltp is not None else 0.0,
+            "ltp": float(ltp) if ltp is not None else None,
             "bid": float(bid) if bid is not None else None,
             "ask": float(ask) if ask is not None else None,
         }
+        if change is not None:
+            result["change"] = float(change)
+        if percent_change is not None:
+            result["percent_change"] = float(percent_change)
+        if close is not None:
+            result["close"] = float(close)
+        if volume is not None:
+            result["volume"] = int(volume)
+        return result
 
     def to_dict(self) -> dict:
         """Health status for the /api/health endpoint."""
