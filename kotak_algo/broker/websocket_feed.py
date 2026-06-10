@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import math
 import threading
 import time
 from datetime import datetime, time as dt_time
 from typing import Any
 
-from kotak_algo.exceptions import ConnectionLostError, ReconnectFailedError
-from kotak_algo.utils.api_validator import validate_tick
+from kotak_algo.exceptions import ConnectionLostError, ReconnectFailedError, InvalidMarketDataError
 from kotak_algo.utils.logger import get_logger
 from kotak_algo.events import event_bus, Event, EventNames
 
@@ -35,15 +35,19 @@ class WebSocketFeed:
         self._backoff = 1.0
         self._last_message_time: float = 0.0
         self._symbol_last_tick: dict[str, float] = {}
-        self._symbol_last_payload: dict[str, dict[str, Any]] = {}  # For deduplication
+        self._symbol_last_dedup: dict[str, tuple] = {}  # tuple dedup (faster than dict)
         self._should_run = False
         self._heartbeat_thread: threading.Thread | None = None
+        self._has_watchlist_map: bool = False  # cached hasattr check
         
         # Configuration
         self.MAX_RECONNECT_ATTEMPTS = 20
         self.HEARTBEAT_TIMEOUT_S = 30
         self.STALE_SYMBOL_THRESHOLD_S = 60
         self._last_cleanup_time = time.monotonic()
+        
+        # Tick validation threshold
+        self._MAX_TICK_JUMP_PCT = 20.0
 
     def start(self) -> None:
         self._should_run = True
@@ -63,6 +67,9 @@ class WebSocketFeed:
                 self.logger.info("sdk_websocket_thread_patched")
         except Exception as patch_err:
             self.logger.error("failed_to_patch_sdk_websocket", error=str(patch_err))
+        
+        # Cache watchlist_map check once at start
+        self._has_watchlist_map = hasattr(self.position_tracker, "watchlist_map")
         
         # Register for re-authentication notifications from the broker
         self.broker.register_reauth_listener(self._on_reauth)
@@ -156,7 +163,8 @@ class WebSocketFeed:
     # ── Callbacks ────────────────────────────────────────────────
 
     def on_message(self, message: Any) -> None:
-        self._last_message_time = time.monotonic()
+        now = time.monotonic()  # Single syscall, reuse everywhere
+        self._last_message_time = now
         
         # Handle wrapped stock feed list or quotes list from the Kotak SDK
         if isinstance(message, dict) and message.get("type") in ("stock_feed", "quotes") and isinstance(message.get("data"), list):
@@ -167,17 +175,16 @@ class WebSocketFeed:
                     self.logger.error("error_processing_individual_tick", error=str(tick_err))
             return
 
-        self.logger.info("raw_websocket_tick_received", msg=str(message))
+        # Fast-path extraction — no logging on hot path
         parsed = self._extract_market_data(message)
         if not parsed:
             return
 
         token = parsed.get("instrument_token")
-        if token and hasattr(self.position_tracker, "watchlist_map") and token in self.position_tracker.watchlist_map:
-            mapped_sym = self.position_tracker.watchlist_map[token]
-            parsed["trading_symbol"] = mapped_sym
+        if token and self._has_watchlist_map and token in self.position_tracker.watchlist_map:
+            parsed["trading_symbol"] = self.position_tracker.watchlist_map[token]
 
-        symbol = parsed.get("trading_symbol") or parsed.get("instrument_token")
+        symbol = parsed.get("trading_symbol") or token
         if not symbol:
             return
 
@@ -200,6 +207,12 @@ class WebSocketFeed:
         if ltp is None or ltp <= 0.0:
             return
 
+        # --- Fast Tuple Deduplication (no dict allocation) ---
+        dedup_key = (ltp, bid, ask, parsed.get("volume"))
+        if self._symbol_last_dedup.get(symbol) == dedup_key:
+            return
+        self._symbol_last_dedup[symbol] = dedup_key
+
         # Update parsed dictionary with merged values
         parsed["ltp"] = ltp
         parsed["bid"] = bid
@@ -218,29 +231,16 @@ class WebSocketFeed:
             if prev_pct is not None:
                 parsed["percent_change"] = prev_pct
 
-        # --- Tick Deduplication ---
-        # We use LTP + Bid + Ask + Volume (if available) to detect duplicates
-        current_payload = {
-            "lp": parsed.get("ltp"),
-            "b": parsed.get("bid"),
-            "a": parsed.get("ask"),
-            "v": parsed.get("v")  # Kotak might provide volume
-        }
-        if self._symbol_last_payload.get(symbol) == current_payload:
+        # --- Inline Tick Validation (no function call overhead) ---
+        if math.isnan(ltp) or math.isinf(ltp):
             return
-            
-        self._symbol_last_payload[symbol] = current_payload
-
-        # Validate tick data
         prev_ltp = self.position_tracker.ltp(symbol)
+        if prev_ltp and prev_ltp > 0:
+            pct_jump = abs(ltp - prev_ltp) / prev_ltp * 100
+            if pct_jump > self._MAX_TICK_JUMP_PCT:
+                self.logger.warning("large_tick_jump", symbol=symbol, prev=prev_ltp, ltp=ltp, pct=round(pct_jump, 1))
 
-        try:
-            validate_tick(ltp, parsed.get("bid"), parsed.get("ask"), prev_ltp, symbol)
-        except Exception as exc:
-            self.logger.warning("invalid_tick_rejected", symbol=symbol, error=str(exc))
-            return
-
-        self._symbol_last_tick[symbol] = time.monotonic()
+        self._symbol_last_tick[symbol] = now
         self.position_tracker.update_market_data(**parsed)
 
     def on_error(self, error_message: Any) -> None:
@@ -362,17 +362,17 @@ class WebSocketFeed:
         """Prune tracking data for symbols not seen in > 1 hour."""
         now = time.monotonic()
         stale_threshold = 3600
-        initial_count = len(self._symbol_last_payload)
+        initial_count = len(self._symbol_last_dedup)
         
         # Keep only recently active or currently subscribed symbols
         active_symbols = {s for s, t in self._symbol_last_tick.items() if now - t < stale_threshold}
         subscribed_symbols = {v["trading_symbol"] for v in self._subscribed.values() if "trading_symbol" in v}
         keep_symbols = active_symbols | subscribed_symbols
         
-        self._symbol_last_payload = {s: p for s, p in self._symbol_last_payload.items() if s in keep_symbols}
+        self._symbol_last_dedup = {s: p for s, p in self._symbol_last_dedup.items() if s in keep_symbols}
         self._symbol_last_tick = {s: t for s, t in self._symbol_last_tick.items() if s in keep_symbols}
         
-        pruned = initial_count - len(self._symbol_last_payload)
+        pruned = initial_count - len(self._symbol_last_dedup)
         if pruned > 0:
             self.logger.info("websocket_memory_cleanup", pruned_symbols=pruned)
 

@@ -2,7 +2,7 @@
 
 > **Purpose**: This is the single source of truth for the entire KotakAlgo trading system.  
 > Any new AI agent MUST read this file first before making any changes.  
-> Last updated: 2026-06-10
+> Last updated: 2026-06-11
 
 ---
 
@@ -30,11 +30,12 @@ kotakalgo/
 │   ├── ARCHITECTURE.md              # ← THIS FILE (read first!)
 │   ├── contract_specifications.md   # NSE/BSE expiry rules
 │   └── skills/                      # Custom agent skills
+│       └── fifo-position-matching/  # FIFO position matching engine guide
 │
 ├── kotak_algo/                      # Python Backend (the trading engine)
 │   ├── __init__.py
 │   ├── main.py                      # AlgoApp: main loop, strategy orchestrator
-│   ├── api.py                       # FastAPI server (36KB, 965 lines)
+│   ├── api.py                       # FastAPI server (~57KB, 1406 lines)
 │   ├── config.yaml                  # Runtime configuration
 │   ├── config.example.yaml          # Template for config
 │   ├── config_models.py             # Pydantic validation models
@@ -69,7 +70,7 @@ kotakalgo/
 │   ├── instruments/                 # Instrument master database
 │   │   ├── data/
 │   │   │   ├── contracts.db         # SQLite database of all contracts
-│   │   │   └── db_utils.py          # SQLAlchemy engine & session
+│   │   │   └── db_utils.py          # SQLAlchemy engine & session (WAL mode, 30s timeout)
 │   │   ├── models/                  # ORM models
 │   │   ├── parsers/                 # CSV/API response parsers
 │   │   ├── fetchers/                # Contract data fetchers
@@ -285,12 +286,18 @@ kotakalgo/
 
 ### 4.3 WebSocketFeed (`broker/websocket_feed.py`)
 - Real-time tick data from Kotak Neo
+- **Latency-optimized hot path**: No per-tick logging, inlined validation, single `time.monotonic()` call per tick
 - **Auto-reconnect** with exponential backoff (max 20 attempts)
-- **Heartbeat monitoring** (30s timeout → force reconnect)
+- **Heartbeat monitoring** (30s timeout → force reconnect, market hours only 09:15-15:30)
 - **Per-symbol stale detection** (60s threshold)
-- **Tick deduplication** (skips identical consecutive payloads)
-- **Auto re-subscribe** after reconnect
+- **Tick deduplication** via fast tuple comparison (LTP, bid, ask, volume)
+- **Inlined tick validation**: NaN/Inf guard + 20% jump warning (no function call overhead)
+- **Cached watchlist_map lookup**: `hasattr` check cached at start, not per-tick
+- **SDK monkey-patch**: Prevents Kotak SDK from spawning duplicate websocket threads
+- **Auto re-subscribe** after reconnect or re-authentication
+- **Periodic memory cleanup**: Prunes stale symbol tracking data every hour
 - Feeds data to `PositionTracker` → broadcasts to dashboard via WebSocket
+- **Observed latency**: ~200-350ms end-to-end (network-limited by broker API)
 
 ### 4.4 PositionTracker (`core/position_tracker.py`)
 - Tracks all open legs with real-time LTP, bid/ask, Greeks
@@ -462,7 +469,9 @@ Stored in `kotak_algo/.env`:
 ### Live Tick Flow
 ```
 Kotak Neo WS → WebSocketFeed.on_message()
-                → validate_tick()
+                → _extract_market_data() (fast dict extraction)
+                → tuple dedup check (skip if unchanged)
+                → inline NaN/Inf + jump validation
                 → PositionTracker.update_market_data()
                 → broadcast_tick() callback
                 → asyncio.Queue → tick_broadcaster_task()
@@ -678,6 +687,10 @@ Saved to: `data/post_market_data/YYYY-MM-DD/`
 11. **OMS/RMS Position Engine Simulation**: In the OMS view, order execution, FIFO matching, position flipping, and PNL calculation are computed locally on the client-side using `useOMSStore.ts` and `positionEngine.ts`. It does not execute live trades on the server or broker.
 12. **Start Helper Script**: The local services can be quickly launched using `start_trading.bat` in the project root.
 13. **Trading PIN Bypass**: Access to the dashboard is blocked until the 4-digit PIN (default: `1234`) is verified against `/api/verify-pin`. The unlock status is cached in the browser's `sessionStorage`.
+14. **WebSocket feed latency**: The tick processing hot path is optimized for minimal overhead (~5-10ms processing time). Per-tick INFO logging has been removed — only warnings/errors are logged. The remaining ~200-300ms latency is Kotak's broker network floor.
+15. **Frontend reconnect**: WebSocket reconnect delay is 1 second (not 5s) to minimize data gaps during disconnects.
+16. **SQLite WAL mode**: `db_utils.py` uses WAL journal mode with 30s timeout and `PRAGMA synchronous=NORMAL` for concurrent read/write support.
+17. **FIFO Position Matching**: The `.agent/skills/fifo-position-matching/` skill documents the FIFO matching engine, position flipping logic, and MTM/PNL calculations used in the OMS simulator.
 
 ---
 

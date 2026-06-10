@@ -53,8 +53,8 @@ export const useTickStream = () => {
       };
 
       ws.onclose = () => {
-        console.log('[TickStream] Disconnected. Reconnecting in 5s...');
-        reconnectTimerRef.current = setTimeout(connect, 5000);
+        console.log('[TickStream] Disconnected. Reconnecting in 1s...');
+        reconnectTimerRef.current = setTimeout(connect, 1000);
       };
 
       ws.onerror = () => {
