@@ -48,8 +48,8 @@ export function useLiveData() {
           if (leg.status === "OPEN") {
             netQty = leg.side === "SHORT" ? -leg.quantity : leg.quantity;
           }
-          let avgBuyPrice = leg.side === "SHORT" ? (leg.exit_price || 0) : (leg.entry_price || 0);
-          let avgSellPrice = leg.side === "SHORT" ? (leg.entry_price || 0) : (leg.exit_price || 0);
+          let avgBuyPrice = leg.buy_avg !== undefined ? leg.buy_avg : (leg.side === "SHORT" ? (leg.exit_price || 0) : (leg.entry_price || 0));
+          let avgSellPrice = leg.sell_avg !== undefined ? leg.sell_avg : (leg.side === "SHORT" ? (leg.entry_price || 0) : (leg.exit_price || 0));
 
           return {
             id: symbol,
@@ -70,11 +70,38 @@ export function useLiveData() {
             iv: iv ? iv / 100 : null,
             paper_trade: leg.paper_trade || false
           };
-        });
+        }).filter(p => p.netQty !== 0 || p.realizedPnl !== 0);
 
         // Dispatch to Zustand store
         setPositions(mapped);
         setMargins(data.available_margin || 0, data.margin_used || 0);
+
+        // Update marketWatch with any updated data from market_data
+        const currentMarketWatch = useTerminalStore.getState().marketWatch || [];
+        const updatedMarketWatch = currentMarketWatch.map(item => {
+          const symbolUpper = item.symbol.toUpperCase().replace(" ", "");
+          let itemData = data.market_data[item.symbol] || data.market_data[symbolUpper];
+          if (!itemData) {
+            itemData = Object.values(data.market_data).find(val => 
+              val.trading_symbol?.toUpperCase().replace(" ", "") === symbolUpper ||
+              val.symbol?.toUpperCase().replace(" ", "") === symbolUpper
+            );
+          }
+          if (itemData && itemData.ltp !== undefined) {
+            const tickDirection = itemData.ltp > item.ltp ? 1 : itemData.ltp < item.ltp ? -1 : 0;
+            return {
+              ...item,
+              ltp: itemData.ltp,
+              bidPrice: itemData.bid !== undefined ? itemData.bid : (itemData.bidPrice !== undefined ? itemData.bidPrice : item.bidPrice),
+              askPrice: itemData.ask !== undefined ? itemData.ask : (itemData.askPrice !== undefined ? itemData.askPrice : item.askPrice),
+              change: itemData.change !== undefined ? itemData.change : item.change,
+              percent_change: itemData.percent_change !== undefined ? itemData.percent_change : (itemData.percentChange !== undefined ? itemData.percentChange : item.percent_change),
+              tickDirection: tickDirection !== 0 ? tickDirection : item.tickDirection
+            };
+          }
+          return item;
+        });
+        useTerminalStore.setState({ marketWatch: updatedMarketWatch });
 
         const niftyData = data.market_data["NIFTY"];
         const bankniftyData = data.market_data["BANKNIFTY"];

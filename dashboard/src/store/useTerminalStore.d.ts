@@ -23,8 +23,7 @@ export interface TerminalStore {
   banknifty: { ltp: number; change: number; percentChange: number };
   sensex: { ltp: number; change: number; percentChange: number };
   indiavix: { ltp: number; change: number; percentChange: number };
-  activeView: string;
-  setActiveView: (view: string) => void;
+
   selectedUnderlying: string;
   selectedExpiry: string;
   availableExpiries: string[];

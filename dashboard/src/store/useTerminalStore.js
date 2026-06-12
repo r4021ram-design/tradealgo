@@ -18,8 +18,7 @@ export const useTerminalStore = create((set, get) => ({
   banknifty: { ltp: 0.0, change: 0.0, percentChange: 0.0 },
   sensex: { ltp: 0.0, change: 0.0, percentChange: 0.0 },
   indiavix: { ltp: 0.0, change: 0.0, percentChange: 0.0 },
-  activeView: 'terminal', // 'terminal' or 'oms'
-  setActiveView: (activeView) => set({ activeView }),
+
 
 
   // --- Option Chain State ---
@@ -39,10 +38,30 @@ export const useTerminalStore = create((set, get) => ({
   
   setMarketWatch: (data) => set((state) => {
     const customAdded = state.addedSymbols || [];
-    const merged = [...data];
+    
+    // Merge new data with existing marketWatch to preserve live WebSocket fields (LTP, bid/ask, tick direction)
+    const merged = data.map(newItem => {
+      const existing = state.marketWatch.find(m => m.symbol === newItem.symbol);
+      if (existing) {
+        return {
+          ...newItem,
+          // Preserve live fields from WebSocket
+          ltp: existing.ltp !== undefined && existing.ltp !== 0 ? existing.ltp : newItem.ltp,
+          bidPrice: existing.bidPrice !== undefined && existing.bidPrice !== 0 ? existing.bidPrice : newItem.bidPrice,
+          askPrice: existing.askPrice !== undefined && existing.askPrice !== 0 ? existing.askPrice : newItem.askPrice,
+          tickDirection: existing.tickDirection || 0,
+          change: existing.change !== undefined && existing.change !== 0 ? existing.change : newItem.change,
+          percentChange: existing.percentChange !== undefined && existing.percentChange !== 0 ? existing.percentChange : newItem.percentChange,
+          percent_change: existing.percent_change !== undefined && existing.percent_change !== 0 ? existing.percent_change : newItem.percent_change,
+        };
+      }
+      return newItem;
+    });
+
     customAdded.forEach(item => {
       if (!merged.some(m => m.symbol === item.symbol)) {
-        merged.push(item);
+        const existing = state.marketWatch.find(m => m.symbol === item.symbol);
+        merged.push(existing || item);
       }
     });
     return { marketWatch: merged };
@@ -147,28 +166,43 @@ export const useTerminalStore = create((set, get) => ({
 
   // Action to update LTP and tick direction
   updateTick: (symbol, newLtp, extraData = {}) => set((state) => {
-    const cleanSym = symbol.replace(" ", "").toUpperCase();
+    const baseSymbol = symbol.split('-')[0];
+    const cleanSym = baseSymbol.replace(" ", "").toUpperCase();
     let updatedIndex = {};
-    if (cleanSym === 'NIFTY') {
+    if (cleanSym.includes('NIFTY') && !cleanSym.includes('BANK')) {
       const change = extraData.change !== undefined ? extraData.change : state.nifty.change;
       const percentChange = extraData.percent_change !== undefined ? extraData.percent_change : (extraData.percentChange !== undefined ? extraData.percentChange : state.nifty.percentChange);
       updatedIndex = { nifty: { ltp: newLtp, change, percentChange }, niftySpot: newLtp };
-    } else if (cleanSym === 'BANKNIFTY') {
+    } else if (cleanSym.includes('BANKNIFTY')) {
       const change = extraData.change !== undefined ? extraData.change : state.banknifty.change;
       const percentChange = extraData.percent_change !== undefined ? extraData.percent_change : (extraData.percentChange !== undefined ? extraData.percentChange : state.banknifty.percentChange);
       updatedIndex = { banknifty: { ltp: newLtp, change, percentChange }, bankNiftySpot: newLtp };
-    } else if (cleanSym === 'SENSEX') {
+    } else if (cleanSym.includes('SENSEX')) {
       const change = extraData.change !== undefined ? extraData.change : state.sensex.change;
       const percentChange = extraData.percent_change !== undefined ? extraData.percent_change : (extraData.percentChange !== undefined ? extraData.percentChange : state.sensex.percentChange);
       updatedIndex = { sensex: { ltp: newLtp, change, percentChange } };
-    } else if (cleanSym === 'INDIAVIX' || cleanSym === 'INDIA VIX') {
+    } else if (cleanSym.includes('VIX') || cleanSym.includes('INDIAVIX')) {
       const change = extraData.change !== undefined ? extraData.change : state.indiavix.change;
       const percentChange = extraData.percent_change !== undefined ? extraData.percent_change : (extraData.percentChange !== undefined ? extraData.percentChange : state.indiavix.percentChange);
       updatedIndex = { indiavix: { ltp: newLtp, change, percentChange } };
     }
 
     const updateLtp = (items) => items.map(item => {
-      if (item.symbol === symbol) {
+      const itemSym = item.symbol ? item.symbol.replace(" ", "").toUpperCase() : "";
+      const itemTradingSym = item.tradingSymbol ? item.tradingSymbol.replace(" ", "").toUpperCase() : "";
+      const cleanItemSym = itemSym.split('-')[0];
+      const cleanItemTradingSym = itemTradingSym.split('-')[0];
+      const extraToken = extraData.instrument_token || extraData.token;
+      
+      if (
+        item.symbol === symbol || 
+        item.symbol === baseSymbol || 
+        itemSym === cleanSym || 
+        cleanItemSym === cleanSym || 
+        itemTradingSym === cleanSym || 
+        cleanItemTradingSym === cleanSym || 
+        (extraToken && item.token === extraToken)
+      ) {
         const tickDirection = newLtp > item.ltp ? 1 : newLtp < item.ltp ? -1 : 0;
         return { ...item, ltp: newLtp, tickDirection };
       }
@@ -183,21 +217,52 @@ export const useTerminalStore = create((set, get) => ({
   }),
 
   // Enhanced tick update for market watch with OI/Volume changes
-  updateMarketWatchTick: (symbol, updates) => set((state) => ({
-    marketWatch: state.marketWatch.map(item => {
-      if (item.symbol === symbol) {
-        const tickDirection = updates.ltp > item.ltp ? 1 : updates.ltp < item.ltp ? -1 : 0;
-        return { ...item, ...updates, tickDirection };
-      }
-      return item;
-    }),
-    addedSymbols: (state.addedSymbols || []).map(item => {
-      if (item.symbol === symbol) {
-        return { ...item, ...updates };
-      }
-      return item;
-    })
-  })),
+  updateMarketWatchTick: (symbol, updates) => set((state) => {
+    const baseSymbol = symbol.split('-')[0];
+    const cleanSym = baseSymbol.replace(" ", "").toUpperCase();
+    const token = updates.instrument_token || updates.token;
+    return {
+      marketWatch: state.marketWatch.map(item => {
+        const itemSym = item.symbol ? item.symbol.replace(" ", "").toUpperCase() : "";
+        const itemTradingSym = item.tradingSymbol ? item.tradingSymbol.replace(" ", "").toUpperCase() : "";
+        const cleanItemSym = itemSym.split('-')[0];
+        const cleanItemTradingSym = itemTradingSym.split('-')[0];
+        
+        if (
+          item.symbol === symbol || 
+          item.symbol === baseSymbol || 
+          itemSym === cleanSym || 
+          cleanItemSym === cleanSym || 
+          itemTradingSym === cleanSym || 
+          cleanItemTradingSym === cleanSym || 
+          (token && item.token === token)
+        ) {
+          const tickDirection = updates.ltp > item.ltp ? 1 : updates.ltp < item.ltp ? -1 : 0;
+          return { ...item, ...updates, tickDirection };
+        }
+        return item;
+      }),
+      addedSymbols: (state.addedSymbols || []).map(item => {
+        const itemSym = item.symbol ? item.symbol.replace(" ", "").toUpperCase() : "";
+        const itemTradingSym = item.tradingSymbol ? item.tradingSymbol.replace(" ", "").toUpperCase() : "";
+        const cleanItemSym = itemSym.split('-')[0];
+        const cleanItemTradingSym = itemTradingSym.split('-')[0];
+        
+        if (
+          item.symbol === symbol || 
+          item.symbol === baseSymbol || 
+          itemSym === cleanSym || 
+          cleanItemSym === cleanSym || 
+          itemTradingSym === cleanSym || 
+          cleanItemTradingSym === cleanSym || 
+          (token && item.token === token)
+        ) {
+          return { ...item, ...updates };
+        }
+        return item;
+      })
+    };
+  }),
 
   // Square off position
   squareOff: (symbol) => set((state) => ({

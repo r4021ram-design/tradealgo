@@ -7,7 +7,6 @@ import { OrderModal } from './components/orders/OrderModal';
 import { useTickStream } from './hooks/useTickStream';
 import { useTerminalStore } from './store/useTerminalStore';
 import { useLiveData } from './hooks/useLiveData';
-import { OMSDashboard } from './components/oms/OMSDashboard';
 import { getApiUrl } from './utils/api';
 import { Lock, Unlock, ShieldAlert, KeyRound, CheckCircle } from 'lucide-react';
 
@@ -253,7 +252,6 @@ function UnlockedApp() {
 
   const openOrderModal = useTerminalStore(state => state.openOrderModal);
   const closeOrderModal = useTerminalStore(state => state.closeOrderModal);
-  const activeView = useTerminalStore(state => state.activeView);
   const fetchPaperTradeStatus = useTerminalStore(state => state.fetchPaperTradeStatus);
 
   useEffect(() => {
@@ -304,7 +302,7 @@ function UnlockedApp() {
 
   return (
     <MainLayout>
-      {activeView === 'oms' ? <OMSDashboard /> : <NetPositionGrid />}
+      <NetPositionGrid />
       <OrderModal />
     </MainLayout>
   );

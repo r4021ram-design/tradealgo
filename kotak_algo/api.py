@@ -1085,10 +1085,20 @@ async def upload_contract_note(file: UploadFile = File(...), password: str = For
 
 async def resolve_and_subscribe_watchlist(symbols: list[str]):
     LOGGER.info("resolve_and_subscribe_watchlist_called", symbols=symbols)
+    resolved_tokens = []
     try:
         app = get_algo_app()
         if not app or not hasattr(app, "broker") or not app.broker:
             LOGGER.warning("resolve_and_subscribe_watchlist_skipped_no_app")
+            return
+
+        # Check if the requested symbols list matches app.websocket._subscribed_symbols_set
+        symbols_set = {sym.upper().strip() for sym in symbols}
+        if not hasattr(app.websocket, "_subscribed_symbols_set"):
+            app.websocket._subscribed_symbols_set = set()
+            
+        if app.websocket._subscribed_symbols_set == symbols_set:
+            LOGGER.info("resolve_and_subscribe_watchlist_skipped_already_subscribed", symbols=symbols)
             return
 
         # Check if broker session is alive (bypassed in paper trade mode)
@@ -1097,12 +1107,11 @@ async def resolve_and_subscribe_watchlist(symbols: list[str]):
             LOGGER.warning("resolve_and_subscribe_watchlist_skipped_dead_session")
             return
 
-        resolved_tokens = []
+        contract_map = {}
         
-        # We need a db session to query contracts.db
+        # We need a db session to query contracts.db - query quickly and close immediately
         from kotak_algo.instruments.data.db_utils import SessionLocal
         db = SessionLocal()
-        
         try:
             from kotak_algo.instruments.models.contract_model import Contract
             
@@ -1111,84 +1120,172 @@ async def resolve_and_subscribe_watchlist(symbols: list[str]):
             indices = {"NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "SENSEX", "BANKEX", "INDIA VIX", "INDIAVIX"}
             lookup_symbols = [s for s in symbols_upper if s not in indices]
             
-            contract_map = {}
             if lookup_symbols:
                 contracts = db.query(Contract).filter(
                     Contract.trading_symbol.in_(lookup_symbols)
                 ).all()
                 for c in contracts:
                     if c.trading_symbol:
-                        contract_map[c.trading_symbol.upper().strip()] = c
-
-            for sym in symbols:
-                sym_upper = sym.upper().strip()
-                # 1. Hardcoded indices
-                if sym_upper in indices:
-                    token = "26000" if sym_upper == "NIFTY" else "26009" if sym_upper == "BANKNIFTY" else "1" if sym_upper == "SENSEX" else "12" if sym_upper == "BANKEX" else "26017" if sym_upper in ("FINNIFTY", "INDIA VIX", "INDIAVIX") else "26067"
-                    segment = "bse_cm" if sym_upper in ("SENSEX", "BANKEX") else "nse_cm"
-                    
-                    # Add to watchlist map
-                    if not hasattr(app.position_tracker, "watchlist_map"):
-                        app.position_tracker.watchlist_map = {}
-                    app.position_tracker.watchlist_map[token] = sym
-                    
-                    resolved_tokens.append({"instrument_token": token, "exchange_segment": segment})
-                    continue
-                    
-                # 2. Check cached contracts (derivatives)
-                contract = contract_map.get(sym_upper)
-                if contract:
-                    is_fo = contract.segment.upper() == "FO" or (contract.instrument_type and any(x in contract.instrument_type.upper() for x in ("OPT", "FUT")))
-                    if contract.exchange.upper() == "BSE":
-                        exg_seg = "bse_fo" if is_fo else "bse_cm"
-                    else:
-                        exg_seg = "nse_fo" if is_fo else "nse_cm"
-                        
-                    # Add to watchlist map
-                    if not hasattr(app.position_tracker, "watchlist_map"):
-                        app.position_tracker.watchlist_map = {}
-                    app.position_tracker.watchlist_map[contract.token] = sym
-                    
-                    resolved_tokens.append({"instrument_token": contract.token, "exchange_segment": exg_seg})
-                    continue
-                    
-                # 3. Call search_scrip for cash equities
-                try:
-                    # search_scrip is a blocking API call, so run in a thread
-                    def _search():
-                        return app.broker.search_scrip(exchange_segment="nse_cm", symbol=sym_upper)
-                    
-                    results = await asyncio.to_thread(_search)
-                    if results and isinstance(results, list):
-                        # Find matching scrip
-                        match = None
-                        for res in results:
-                            if res.get("pSymbol") == sym_upper or res.get("pTrdSymbol") == sym_upper or res.get("pSymbolName") == f"{sym_upper}-EQ" or res.get("pSymbolName") == sym_upper:
-                                match = res
-                                break
-                        if not match and results:
-                            match = results[0]
-                            
-                        if match:
-                            token = match.get("pSecToken") or match.get("pSymbol") or match.get("token")
-                            segment = match.get("pExchSeg") or match.get("pSegment") or "nse_cm"
-                            if token:
-                                # Add to watchlist map
-                                if not hasattr(app.position_tracker, "watchlist_map"):
-                                    app.position_tracker.watchlist_map = {}
-                                app.position_tracker.watchlist_map[str(token)] = sym
-                                
-                                resolved_tokens.append({"instrument_token": str(token), "exchange_segment": segment})
-                                LOGGER.info("resolved_watchlist_symbol", symbol=sym, token=token, segment=segment)
-                except Exception as e:
-                    LOGGER.warning("failed_to_resolve_scrip_for_watchlist", symbol=sym, error=str(e))
-                    
-            if resolved_tokens:
-                LOGGER.info("subscribing_watchlist_tokens", tokens=resolved_tokens)
-                app.websocket.subscribe(resolved_tokens)
-                
+                        # Extract necessary fields to dict to avoid accessing SQLAlchemy lazy properties after close
+                        contract_map[c.trading_symbol.upper().strip()] = {
+                            "token": c.token,
+                            "segment": c.segment,
+                            "instrument_type": c.instrument_type,
+                            "exchange": c.exchange
+                        }
         finally:
             db.close()
+            
+        indices = {"NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "SENSEX", "BANKEX", "INDIA VIX", "INDIAVIX"}
+        for sym in symbols:
+            sym_upper = sym.upper().strip()
+            # 1. Hardcoded indices
+            if sym_upper in indices:
+                token = "26000" if sym_upper == "NIFTY" else "26009" if sym_upper == "BANKNIFTY" else "1" if sym_upper == "SENSEX" else "12" if sym_upper == "BANKEX" else "26017" if sym_upper in ("FINNIFTY", "INDIA VIX", "INDIAVIX") else "26067"
+                segment = "bse_cm" if sym_upper in ("SENSEX", "BANKEX") else "nse_cm"
+                
+                # Add to watchlist map
+                if not hasattr(app.position_tracker, "watchlist_map"):
+                    app.position_tracker.watchlist_map = {}
+                app.position_tracker.watchlist_map[token] = sym
+                
+                resolved_tokens.append({"instrument_token": token, "exchange_segment": segment})
+                continue
+                
+            # 2. Check cached contracts (derivatives)
+            contract = contract_map.get(sym_upper)
+            if contract:
+                is_fo = contract["segment"].upper() == "FO" or (contract["instrument_type"] and any(x in contract["instrument_type"].upper() for x in ("OPT", "FUT")))
+                if contract["exchange"].upper() == "BSE":
+                    exg_seg = "bse_fo" if is_fo else "bse_cm"
+                else:
+                    exg_seg = "nse_fo" if is_fo else "nse_cm"
+                    
+                # Add to watchlist map
+                if not hasattr(app.position_tracker, "watchlist_map"):
+                    app.position_tracker.watchlist_map = {}
+                app.position_tracker.watchlist_map[contract["token"]] = sym
+                
+                resolved_tokens.append({"instrument_token": contract["token"], "exchange_segment": exg_seg})
+                continue
+                
+            # 3. Call search_scrip for cash equities
+            try:
+                # search_scrip is a blocking API call, so run in a thread
+                def _search():
+                    return app.broker.search_scrip(exchange_segment="nse_cm", symbol=sym_upper)
+                
+                results = await asyncio.to_thread(_search)
+                if results and isinstance(results, list):
+                    # Find matching scrip
+                    match = None
+                    # First pass: look for exact match that is a cash equity (pTrdSymbol ends with "-EQ" or pGroup is "EQ")
+                    for res in results:
+                        trd_sym = (res.get("pTrdSymbol") or "").upper()
+                        grp = (res.get("pGroup") or "").upper()
+                        sym_name = (res.get("pSymbolName") or "").upper()
+                        p_sym = (res.get("pSymbol") or "").upper()
+                        
+                        if p_sym == sym_upper or trd_sym == sym_upper or sym_name == f"{sym_upper}-EQ" or sym_name == sym_upper or trd_sym == f"{sym_upper}-EQ":
+                            if trd_sym.endswith("-EQ") or grp == "EQ" or grp == "L1":
+                                match = res
+                                break
+                    # Second pass: if no standard EQ match, look for any name match
+                    if not match:
+                        for res in results:
+                            trd_sym = (res.get("pTrdSymbol") or "").upper()
+                            sym_name = (res.get("pSymbolName") or "").upper()
+                            p_sym = (res.get("pSymbol") or "").upper()
+                            if p_sym == sym_upper or trd_sym == sym_upper or sym_name == f"{sym_upper}-EQ" or sym_name == sym_upper or trd_sym == f"{sym_upper}-EQ":
+                                match = res
+                                break
+                    if not match and results:
+                        match = results[0]
+                        
+                    if match:
+                        token = match.get("pSecToken") or match.get("pSymbol") or match.get("token")
+                        segment = match.get("pExchSeg") or match.get("pSegment") or "nse_cm"
+                        if token:
+                            # Add to watchlist map
+                            if not hasattr(app.position_tracker, "watchlist_map"):
+                                app.position_tracker.watchlist_map = {}
+                            app.position_tracker.watchlist_map[str(token)] = sym
+                            
+                            resolved_tokens.append({"instrument_token": str(token), "exchange_segment": segment})
+                            LOGGER.info("resolved_watchlist_symbol", symbol=sym, token=token, segment=segment)
+            except Exception as e:
+                LOGGER.warning("failed_to_resolve_scrip_for_watchlist", symbol=sym, error=str(e))
+                
+        if resolved_tokens:
+            LOGGER.info("subscribing_watchlist_tokens", tokens=resolved_tokens)
+            app.websocket.subscribe(resolved_tokens)
+            app.websocket._subscribed_symbols_set = symbols_set
+            
+            # Filter out index tokens before fetching on-demand quotes
+            index_tokens_set = {"26000", "26009", "1", "12", "26017", "26067"}
+            non_index_tokens = [t for t in resolved_tokens if str(t["instrument_token"]) not in index_tokens_set]
+            index_tokens = [t for t in resolved_tokens if str(t["instrument_token"]) in index_tokens_set]
+            
+            # 1. Initialize index tokens using LKV or hardcoded values
+            for tok_dict in index_tokens:
+                tok = str(tok_dict["instrument_token"])
+                sym_name = app.position_tracker.watchlist_map.get(tok)
+                if sym_name:
+                    lkv_entry = app.position_tracker.lkv_store.get_full(sym_name)
+                    fallback_ltp = lkv_entry.get("ltp", 0.0)
+                    if fallback_ltp <= 0.0:
+                        if sym_name == "NIFTY": fallback_ltp = 23161.60
+                        elif sym_name == "SENSEX": fallback_ltp = 73832.55
+                        elif sym_name == "BANKNIFTY": fallback_ltp = 55176.75
+                        elif sym_name == "INDIA VIX" or sym_name == "INDIAVIX": fallback_ltp = 15.61
+                    fallback_change = lkv_entry.get("change", 0.0)
+                    fallback_pct = lkv_entry.get("percent_change", 0.0)
+                    
+                    app.position_tracker.update_market_data(
+                        trading_symbol=sym_name,
+                        instrument_token=tok,
+                        ltp=fallback_ltp,
+                        bid=fallback_ltp - 0.05,
+                        ask=fallback_ltp + 0.05,
+                        change=round(fallback_change, 2),
+                        percent_change=round(fallback_pct, 2)
+                    )
+            
+            # 2. Fetch REST quotes only for non-indices
+            if non_index_tokens:
+                try:
+                    def _fetch_watchlist_quotes():
+                        return app.broker.quotes(instrument_tokens=non_index_tokens)
+                    q_res = await asyncio.to_thread(_fetch_watchlist_quotes)
+                    if q_res:
+                        from kotak_algo.core.option_chain import OptionChainService
+                        parsed_qs = OptionChainService(app.broker, app.logger)._parse_quotes(q_res)
+                        for tok_dict in non_index_tokens:
+                            tok = str(tok_dict["instrument_token"])
+                            q_data = parsed_qs.get(tok, {})
+                            if q_data:
+                                sym_name = app.position_tracker.watchlist_map.get(tok)
+                                if sym_name:
+                                    close_px = float((q_data.get("ohlc") or {}).get("close") or 0.0)
+                                    ltp_val = float(q_data.get("ltp") or 0.0)
+                                    change_val = float(q_data.get("change") or 0.0)
+                                    if change_val == 0.0 and close_px > 0.0 and ltp_val > 0.0:
+                                        change_val = ltp_val - close_px
+                                    pct_val = float(q_data.get("percent_change") or 0.0)
+                                    if pct_val == 0.0 and change_val != 0.0 and close_px > 0.0:
+                                        pct_val = (change_val / close_px) * 100.0
+                                        
+                                    app.position_tracker.update_market_data(
+                                        trading_symbol=sym_name,
+                                        instrument_token=tok,
+                                        ltp=float(q_data.get("ltp", 0.0)),
+                                        bid=float(q_data.get("bid", 0.0)),
+                                        ask=float(q_data.get("ask", 0.0)),
+                                        change=round(change_val, 2),
+                                        percent_change=round(pct_val, 2),
+                                    )
+                except Exception as e:
+                    LOGGER.warning("failed_to_fetch_initial_watchlist_quotes", error=str(e))
     except Exception as e:
         LOGGER.exception("resolve_and_subscribe_watchlist_failed", error=str(e))
 

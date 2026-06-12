@@ -100,24 +100,11 @@ kotakalgo/
 │   │   ├── App.css                  # Global styles
 │   │   ├── index.css                # Tailwind directives
 │   │   │
-│   │   ├── engine/                  # OMS Core Engine (TypeScript)
-│   │   │   ├── types.ts             # Segment, Side, Order, Fill, Position types
-│   │   │   ├── instrumentRegistry.ts# Position key generation and parsing
-│   │   │   └── positionEngine.ts    # FIFO matching & realized/unrealized PNL
-│   │   │
 │   │   ├── components/
 │   │   │   ├── layout/
 │   │   │   │   ├── MainLayout.jsx   # Full-screen layout wrapper
 │   │   │   │   ├── TopBar.jsx       # NIFTY/BANKNIFTY spot, MTM, active view tabs, paper switcher
 │   │   │   │   └── SplitPane.jsx    # Split-pane layout
-│   │   │   │
-│   │   │   ├── oms/                 # OMS Position Engine Simulation Grids
-│   │   │   │   ├── OMSDashboard.tsx # Composited layout with filtering/tabs
-│   │   │   │   ├── OpenPositionsGrid.tsx # Open positions table
-│   │   │   │   ├── ClosedTradesGrid.tsx  # Closed entry/exit matched pairs
-│   │   │   │   ├── OrderBookGrid.tsx     # Order history book
-│   │   │   │   ├── NetPositionWindow.tsx # MTM summary + manual order simulator
-│   │   │   │   └── FilterBar.tsx         # Multi-segment grid filter panel
 │   │   │   │
 │   │   │   ├── market-watch/
 │   │   │   │   └── MarketWatch.jsx  # AG Grid watchlist with live tick flashing
@@ -524,19 +511,12 @@ GET /api/free/option-chain/{symbol}
 - `selectedUnderlying`, `selectedExpiry` — Option chain selection
 - `optionChain[]` — Option chain data rows
 - `orderModal{}` — Order entry modal state
-- `activeView` — Renders either the Live Terminal (`'terminal'`) or the OMS Simulator (`'oms'`)
 - `isPaperTrade` — Boolean tracking if Simulated paper trading or Live trading is active
 - `theme` — Layout theme: `'light'` (Excel spreadsheet look) or `'dark'` (premium terminal look)
-- Actions: `updateTick()`, `setNifty()`, `setBankNifty()`, `setSensex()`, `setIndiaVix()`, `setOptionChain()`, `squareOff()`, `executeStrategy()`, `setActiveView()`, `togglePaperTrade()`, `fetchPaperTradeStatus()`, `toggleTheme()`
+- Actions: `updateTick()`, `setNifty()`, `setBankNifty()`, `setSensex()`, `setIndiaVix()`, `setOptionChain()`, `squareOff()`, `executeStrategy()`, `togglePaperTrade()`, `fetchPaperTradeStatus()`, `toggleTheme()`
 
 **`usePortfolioStore`** (portfolio):
-- Portfolio state, manual simulation legs, and P&L/scenario visualization data
-
-**`useOMSStore`** (OMS/RMS simulation):
-- `orders[]` — Placed simulation orders
-- `fills[]` — Executed trade fills
-- `marketPrices{}` — Tracked LTP / market prices per key
-- Actions: `addOrder()`, `addFill()`, `updateMarketPrice()`, `getDerivedPositions()`, `getPositionSummaries()`
+- Portfolio state, and P&L/scenario visualization data for live positions
 
 ### Premium Lock Screen & Trading PIN Security
 - Renders a secure keypad overlay (`App.jsx`) if `sessionStorage.getItem('terminal_unlocked')` is not `true`.
@@ -684,13 +664,11 @@ Saved to: `data/post_market_data/YYYY-MM-DD/`
 8. **Structured logging**: All backend logs are JSON (structlog). Parse with `jq` or structured log viewers.
 9. **No routing library**: Dashboard uses conditional rendering, not React Router.
 10. **Kill switch**: `POST /square-off-all` or `RiskManager.activate_kill_switch()` exits everything immediately.
-11. **OMS/RMS Position Engine Simulation**: In the OMS view, order execution, FIFO matching, position flipping, and PNL calculation are computed locally on the client-side using `useOMSStore.ts` and `positionEngine.ts`. It does not execute live trades on the server or broker.
-12. **Start Helper Script**: The local services can be quickly launched using `start_trading.bat` in the project root.
-13. **Trading PIN Bypass**: Access to the dashboard is blocked until the 4-digit PIN (default: `1234`) is verified against `/api/verify-pin`. The unlock status is cached in the browser's `sessionStorage`.
-14. **WebSocket feed latency**: The tick processing hot path is optimized for minimal overhead (~5-10ms processing time). Per-tick INFO logging has been removed — only warnings/errors are logged. The remaining ~200-300ms latency is Kotak's broker network floor.
-15. **Frontend reconnect**: WebSocket reconnect delay is 1 second (not 5s) to minimize data gaps during disconnects.
-16. **SQLite WAL mode**: `db_utils.py` uses WAL journal mode with 30s timeout and `PRAGMA synchronous=NORMAL` for concurrent read/write support.
-17. **FIFO Position Matching**: The `.agent/skills/fifo-position-matching/` skill documents the FIFO matching engine, position flipping logic, and MTM/PNL calculations used in the OMS simulator.
+11. **Start Helper Script**: The local services can be quickly launched using `start_trading.bat` in the project root.
+12. **Trading PIN Bypass**: Access to the dashboard is blocked until the 4-digit PIN (default: `1234`) is verified against `/api/verify-pin`. The unlock status is cached in the browser's `sessionStorage`.
+13. **WebSocket feed latency**: The tick processing hot path is optimized for minimal overhead (~5-10ms processing time). Per-tick INFO logging has been removed — only warnings/errors are logged. The remaining ~200-300ms latency is Kotak's broker network floor.
+14. **Frontend reconnect**: WebSocket reconnect delay is 1 second (not 5s) to minimize data gaps during disconnects.
+15. **SQLite WAL mode**: `db_utils.py` uses WAL journal mode with 30s timeout and `PRAGMA synchronous=NORMAL` for concurrent read/write support.
 
 ---
 

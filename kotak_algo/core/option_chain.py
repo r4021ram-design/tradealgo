@@ -72,14 +72,21 @@ class OptionChainService:
             idx_segment = "bse_cm"
 
         if idx_token:
-            try:
-                quotes = self.broker.quotes(instrument_tokens=[{"instrument_token": idx_token, "exchange_segment": idx_segment}], is_index=True)
-                parsed = self._parse_quotes(quotes)
-                spot = parsed.get(idx_token, {}).get("ltp", 0.0)
-                if spot > 0:
-                    self.logger.info("using_actual_index_spot", underlying=underlying, spot=spot)
-            except Exception as e:
-                self.logger.warning("index_quote_fetch_failed", token=idx_token, error=str(e))
+            # Try to get it from lkv.json first to avoid broken index REST quotes call
+            lkv_path = Path(__file__).resolve().parents[1] / "data" / "lkv.json"
+            if lkv_path.exists():
+                try:
+                    import json
+                    with open(lkv_path, "r", encoding="utf-8") as f:
+                        lkv_data = json.load(f)
+                        if isinstance(lkv_data, dict):
+                            entry = lkv_data.get(underlying.upper())
+                            if isinstance(entry, dict) and entry.get("ltp"):
+                                spot = float(entry["ltp"])
+                                if spot > 0:
+                                    self.logger.info("using_lkv_index_spot", underlying=underlying, spot=spot)
+                except Exception as e:
+                    self.logger.warning("lkv_spot_fetch_failed", error=str(e))
 
         # Fallback: Try Futures LTP if index quote unavailable
         if spot <= 0:

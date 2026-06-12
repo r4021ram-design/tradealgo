@@ -120,21 +120,43 @@ export function useOptionChainData() {
           { symbol: 'BANKNIFTY', ltp: bankNiftySpot, change: 0.0, bidPrice: bankNiftySpot, askPrice: bankNiftySpot, volume: 0, oi: 0 },
           { 
             symbol: `${underlying} ATM CE`, 
+            tradingSymbol: atmRow.ce_symbol,
+            token: atmRow.ce_token,
             ltp: ce.ltp || 0, 
             bidPrice: ce.bidPrice || 0, 
+            bidQty: ce.bidQty || 0,
             askPrice: ce.askPrice || 0, 
+            askQty: ce.askQty || 0,
             oi: ce.oi || 0, 
+            oiChange: ce.oiChange || 0,
+            volume: ce.volume || 0,
             iv: ce.iv || 0,
-            change: 0
+            delta: ce.delta || 0,
+            gamma: ce.gamma || 0,
+            theta: ce.theta || 0,
+            vega: ce.vega || 0,
+            percent_change: ce.percent_change || 0,
+            change: ce.change || 0
           },
           { 
             symbol: `${underlying} ATM PE`, 
+            tradingSymbol: atmRow.pe_symbol,
+            token: atmRow.pe_token,
             ltp: pe.ltp || 0, 
             bidPrice: pe.bidPrice || 0, 
+            bidQty: pe.bidQty || 0,
             askPrice: pe.askPrice || 0, 
+            askQty: pe.askQty || 0,
             oi: pe.oi || 0, 
+            oiChange: pe.oiChange || 0,
+            volume: pe.volume || 0,
             iv: pe.iv || 0,
-            change: 0
+            delta: pe.delta || 0,
+            gamma: pe.gamma || 0,
+            theta: pe.theta || 0,
+            vega: pe.vega || 0,
+            percent_change: pe.percent_change || 0,
+            change: pe.change || 0
           }
         ];
         setMarketWatch(mw);

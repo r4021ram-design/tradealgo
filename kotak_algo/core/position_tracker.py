@@ -100,13 +100,83 @@ def parse_expiry(expiry_clean_str: str, underlying: str = "") -> datetime:
         return now.replace(hour=15, minute=30, second=0, microsecond=0)
 
 
+class LKVStore:
+    """
+    Persistent thread-safe and throttled Last-Known-Value (LKV) cache manager.
+    Updates are saved to disk at most once every 2.0 seconds.
+    """
+    def __init__(self, file_path: Path) -> None:
+        self.file_path = file_path
+        self.lock = threading.Lock()
+        self.data: dict[str, dict[str, Any]] = self._load()
+        self._last_save_time = 0.0
+
+    def _load(self) -> dict[str, dict[str, Any]]:
+        if self.file_path.exists():
+            try:
+                with open(self.file_path, "r", encoding="utf-8") as f:
+                    content = json.load(f)
+                    if isinstance(content, dict):
+                        return content
+            except Exception:
+                pass
+        return {}
+
+    def get_full(self, symbol: str) -> dict[str, Any]:
+        if not symbol:
+            return {}
+        symbol = symbol.upper()
+        with self.lock:
+            val = self.data.get(symbol)
+            if isinstance(val, dict):
+                return val.copy()
+            elif val is not None:
+                return {"ltp": float(val), "close": float(val), "change": 0.0, "percent_change": 0.0}
+            return {}
+
+    def set(self, symbol: str, ltp: float, close: float | None = None, change: float | None = None, percent_change: float | None = None) -> None:
+        if not symbol or ltp <= 0.0:
+            return
+        symbol = symbol.upper()
+        with self.lock:
+            entry = self.data.get(symbol)
+            if not isinstance(entry, dict):
+                entry = {}
+            entry["ltp"] = ltp
+            if close is not None:
+                entry["close"] = close
+            elif "close" not in entry:
+                entry["close"] = ltp
+            
+            if change is not None:
+                entry["change"] = change
+            if percent_change is not None:
+                entry["percent_change"] = percent_change
+                
+            self.data[symbol] = entry
+            
+            now = time.time()
+            if now - self._last_save_time >= 2.0:
+                self._last_save_time = now
+                self._save_unsafe()
+
+    def flush(self) -> None:
+        """Forces an immediate save to file."""
+        with self.lock:
+            self._save_unsafe()
+
+    def _save_unsafe(self) -> None:
+        try:
+            self.file_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.file_path, "w", encoding="utf-8") as f:
+                json.dump(self.data, f, indent=2)
+        except Exception:
+            pass
+
+
 class PositionTracker:
     """
-    Enhanced position tracker with:
-      - Typed error handling in poll loop
-      - Tick data validation
-      - Consecutive failure monitoring with alerts
-      - Per-symbol tick freshness tracking
+    Enhanced position tracker with persistent LKV caching.
     """
 
     MAX_CONSECUTIVE_POLL_FAILURES = 5
@@ -130,10 +200,35 @@ class PositionTracker:
         self._consecutive_poll_failures = 0
         self._symbol_last_update: dict[str, float] = {}
         self.watchlist_map: dict[str, str] = {}
+        self._data_dir = Path(__file__).resolve().parents[1] / "data"
+        self._lkv_file = self._data_dir / "lkv.json"
+        self.lkv_store = LKVStore(self._lkv_file)
 
     @property
     def consecutive_poll_failures(self) -> int:
         return self._consecutive_poll_failures
+
+    def is_market_hours(self) -> bool:
+        """
+        Validates if current time is within standard Indian market hours:
+        Weekdays (Monday to Friday), 09:15 to 15:30, excluding exchange holidays.
+        """
+        now = datetime.now()
+        if now.weekday() >= 5:
+            return False
+            
+        today_str = now.strftime("%Y-%m-%d")
+        HOLIDAYS_2026 = {
+            "2026-01-15", "2026-01-26", "2026-03-03", "2026-03-26", "2026-03-31",
+            "2026-04-03", "2026-04-14", "2026-05-01", "2026-05-28", "2026-06-26",
+            "2026-09-14", "2026-10-02", "2026-10-20", "2026-11-10", "2026-11-24",
+            "2026-12-25"
+        }
+        if today_str in HOLIDAYS_2026:
+            return False
+            
+        from datetime import time as dt_time
+        return dt_time(9, 15) <= now.time() <= dt_time(15, 30)
 
     def register_listener(self, callback: Any) -> None:
         if callback not in self._listeners:
@@ -192,6 +287,26 @@ class PositionTracker:
         if key is None:
             return
 
+        symbol_name = trading_symbol or (self.watchlist_map.get(instrument_token) if hasattr(self, "watchlist_map") else None) or instrument_token
+
+        # Intercept off-market/zero LTP and fetch LKV
+        if ltp is None or ltp <= 0.0 or not self.is_market_hours():
+            lkv_entry = self.lkv_store.get_full(symbol_name)
+            if lkv_entry:
+                ltp = lkv_entry.get("ltp", 0.0)
+                close = lkv_entry.get("close", ltp)
+                change = lkv_entry.get("change", 0.0)
+                percent_change = lkv_entry.get("percent_change", 0.0)
+                bid = ltp - 0.05
+                ask = ltp + 0.05
+            elif ltp is None or ltp <= 0.0:
+                ltp = 0.0
+                close = 0.0
+                change = 0.0
+                percent_change = 0.0
+                bid = 0.0
+                ask = 0.0
+
         # Validate the tick
         prev_ltp = float(self.market_data.get(key, {}).get("ltp", 0.0) or 0.0)
         try:
@@ -199,6 +314,10 @@ class PositionTracker:
         except Exception as exc:
             self.logger.warning("tick_validation_failed", key=key, error=str(exc))
             return
+
+        # Commit to LKV store if active market hours and tick is valid
+        if ltp > 0.0 and self.is_market_hours():
+            self.lkv_store.set(symbol_name, ltp, close=close, change=change, percent_change=percent_change)
 
         payload = {
             "trading_symbol": trading_symbol,
@@ -369,13 +488,18 @@ class PositionTracker:
 
     def _poll_positions(self) -> None:
         while self._running:
+            # Always update index spots first or independently to ensure off-market fallbacks are served
+            try:
+                self._update_index_spots()
+            except Exception as exc:
+                self.logger.warning("failed_to_update_index_spots_in_poll", error=str(exc))
+
             try:
                 positions_raw = self.client_provider.positions()
                 positions = validate_positions_response(positions_raw)
                 limits = self.client_provider.limits()
                 self._update_margin(limits)
                 self._merge_positions(positions)
-                self._update_index_spots()
                 
                 # --- Risk Reconciliation ---
                 if hasattr(self, 'risk_manager') and self.risk_manager:
@@ -428,107 +552,56 @@ class PositionTracker:
 
     def _update_index_spots(self) -> None:
         try:
-            db_path = Path(__file__).resolve().parents[1] / "instruments" / "data" / "contracts.db"
-            import sqlite3
-            conn = sqlite3.connect(str(db_path))
-            cursor = conn.cursor()
+            # Spot index token mapping: (token, segment, default_ltp)
+            index_tokens = {
+                "NIFTY": ("26000", "nse_cm", 23161.60),
+                "BANKNIFTY": ("26009", "nse_cm", 55176.75),
+                "SENSEX": ("1", "bse_cm", 73832.55),
+                "BANKEX": ("12", "bse_cm", 54000.00),
+                "INDIA VIX": ("26017", "nse_cm", 15.61)
+            }
             
-            for symbol in ("NIFTY", "BANKNIFTY", "SENSEX", "BANKEX", "INDIA VIX"):
-                if symbol == "INDIA VIX":
-                    try:
-                        vix_quotes = self.client_provider.quotes(
-                            instrument_tokens=[{"instrument_token": "26017", "exchange_segment": "nse_cm"}],
-                            is_index=True
-                        )
-                        if vix_quotes:
-                            vix_messages = []
-                            if isinstance(vix_quotes, list):
-                                vix_messages = vix_quotes
-                            elif isinstance(vix_quotes, dict):
-                                vix_messages = vix_quotes.get("message", [])
-                                if not isinstance(vix_messages, list):
-                                    vix_messages = [vix_messages]
-                            for vmsg in vix_messages:
-                                if isinstance(vmsg, dict):
-                                    vix_ltp = float(vmsg.get("last_traded_price") or vmsg.get("ltp") or 0.0)
-                                    if vix_ltp > 0:
-                                        vix_close = float((vmsg.get("ohlc") or {}).get("close") or (vmsg.get("ohlc") or {}).get("c") or 0.0)
-                                        vix_chg = float(vmsg.get("netChange") or vmsg.get("nc") or vmsg.get("cng") or 0.0)
-                                        vix_pct = float(vmsg.get("percentChange") or vmsg.get("pc") or 0.0)
-                                        if vix_chg == 0.0 and vix_close > 0:
-                                            vix_chg = vix_ltp - vix_close
-                                        if vix_pct == 0.0 and vix_close > 0:
-                                            vix_pct = (vix_chg / vix_close) * 100.0
-                                        self.update_market_data(
-                                            trading_symbol="INDIA VIX",
-                                            instrument_token="26017",
-                                            ltp=vix_ltp,
-                                            bid=vix_ltp - 0.05,
-                                            ask=vix_ltp + 0.05,
-                                            change=round(vix_chg, 2),
-                                            percent_change=round(vix_pct, 2)
-                                        )
-                                        break
-                    except Exception as e:
-                        self.logger.warning("failed_to_fetch_vix_quote", error=str(e))
-                    continue
-
-                # Spot index token mapping (not futures)
-                index_tokens = {
-                    "NIFTY": ("26000", "nse_cm"),
-                    "BANKNIFTY": ("26009", "nse_cm"),
-                    "SENSEX": ("1", "bse_cm"),
-                    "BANKEX": ("12", "bse_cm"),
-                }
-                if symbol not in index_tokens:
-                    continue
-                token, exg_seg = index_tokens[symbol]
-                try:
-                    quotes = self.client_provider.quotes(
-                        instrument_tokens=[{"instrument_token": token, "exchange_segment": exg_seg}],
-                        is_index=True
-                    )
-                    if quotes:
-                        messages = []
-                        if isinstance(quotes, list):
-                            messages = quotes
-                        elif isinstance(quotes, dict):
-                            messages = quotes.get("message", [])
-                            if not isinstance(messages, list):
-                                messages = [messages]
-                        
-                        for msg in messages:
-                            if isinstance(msg, dict):
-                                ltp = float(msg.get("last_traded_price") or msg.get("ltp") or 0.0)
-                                if ltp > 0:
-                                    ohlc = msg.get("ohlc", {})
-                                    close_px = float(ohlc.get("close") or ohlc.get("c") or 0.0)
-                                    
-                                    change = float(msg.get("netChange") or msg.get("nc") or msg.get("cng") or 0.0)
-                                    percent_change = float(msg.get("percentChange") or msg.get("pc") or 0.0)
-                                    
-                                    if change == 0.0 and close_px > 0.0:
-                                        change = ltp - close_px
-                                    if percent_change == 0.0 and close_px > 0.0:
-                                        percent_change = (change / close_px) * 100.0
-                                    
-                                    self.update_market_data(
-                                        trading_symbol=symbol,
-                                        instrument_token=token,
-                                        ltp=ltp,
-                                        bid=ltp - 0.05,
-                                        ask=ltp + 0.05,
-                                        change=round(change, 2),
-                                        percent_change=round(percent_change, 2)
-                                    )
-                                    break
-                except Exception as e:
-                    self.logger.warning("failed_to_fetch_index_spot_quote", symbol=symbol, error=str(e))
-            conn.close()
+            for idx, (token, exg_seg, default_ltp) in index_tokens.items():
+                lkv_entry = self.lkv_store.get_full(idx)
+                ltp = lkv_entry.get("ltp", 0.0)
+                change = lkv_entry.get("change", 0.0)
+                percent_change = lkv_entry.get("percent_change", 0.0)
+                
+                if ltp <= 0.0:
+                    ltp = default_ltp
+                    change = 0.0
+                    percent_change = 0.0
+                
+                # Check if we have more recent tick data in memory
+                key = f"{exg_seg}:{token}"
+                mem_data = self.market_data.get(key, {})
+                mem_ltp = float(mem_data.get("ltp") or 0.0)
+                if mem_ltp > 0.0:
+                    ltp = mem_ltp
+                    change = float(mem_data.get("change") or 0.0)
+                    percent_change = float(mem_data.get("percent_change") or 0.0)
+                
+                self.update_market_data(
+                    trading_symbol=idx,
+                    instrument_token=token,
+                    ltp=ltp,
+                    bid=ltp - 0.05,
+                    ask=ltp + 0.05,
+                    change=round(change, 2),
+                    percent_change=round(percent_change, 2)
+                )
         except Exception as exc:
             self.logger.warning("failed_to_update_index_spots", error=str(exc))
 
     def _merge_positions(self, positions: list) -> None:
+        if self.paper_trade:
+            return
+
+        # Clear any paper trade legs when in live mode
+        paper_symbols = [sym for sym, leg in self.legs.items() if leg.get("paper_trade")]
+        for sym in paper_symbols:
+            self.legs.pop(sym, None)
+
         for row in positions:
             symbol = row.get("trading_symbol") or row.get("trdSym") or row.get("symbol")
             if not symbol:
@@ -560,22 +633,40 @@ class PositionTracker:
             leg["side"] = "SHORT" if net_qty < 0 else "LONG"
             leg["paper_trade"] = False
             
-            # Parse Entry Price (Kotak Neo specific fields or standard fallback)
-            entry_price = 0.0
-            if net_qty > 0 and total_buy_qty > 0:
-                buy_amt = float(row.get("cfBuyAmt", 0) or 0) + float(row.get("buyAmt", 0) or 0)
-                entry_price = buy_amt / total_buy_qty
-            elif net_qty < 0 and total_sell_qty > 0:
-                sell_amt = float(row.get("cfSellAmt", 0) or 0) + float(row.get("sellAmt", 0) or 0)
-                entry_price = sell_amt / total_sell_qty
-                
-            if entry_price == 0.0:
-                for price_key in ("avgPrice", "average_price", "buyAvg", "sellAvg"):
-                    if row.get(price_key) is not None:
-                        entry_price = float(row[price_key])
+            # Parse Buy and Sell averages separately
+            buy_amt = float(row.get("cfBuyAmt", 0) or 0) + float(row.get("buyAmt", 0) or 0)
+            buy_avg = buy_amt / total_buy_qty if total_buy_qty > 0 else 0.0
+            
+            sell_amt = float(row.get("cfSellAmt", 0) or 0) + float(row.get("sellAmt", 0) or 0)
+            sell_avg = sell_amt / total_sell_qty if total_sell_qty > 0 else 0.0
+            
+            # Fallback for standard dict structure
+            if buy_avg == 0.0 and total_buy_qty > 0:
+                for buy_key in ("buyAvg", "buy_avg", "avgPrice", "average_price"):
+                    if row.get(buy_key) is not None:
+                        buy_avg = float(row[buy_key])
                         break
-                        
-            leg["entry_price"] = entry_price
+            if sell_avg == 0.0 and total_sell_qty > 0:
+                for sell_key in ("sellAvg", "sell_avg", "avgPrice", "average_price"):
+                    if row.get(sell_key) is not None:
+                        sell_avg = float(row[sell_key])
+                        break
+
+            closed_qty = min(total_buy_qty, total_sell_qty)
+            realized_pnl = 0.0
+            if closed_qty > 0:
+                realized_pnl = (sell_avg - buy_avg) * closed_qty
+                
+            leg["buy_avg"] = buy_avg
+            leg["sell_avg"] = sell_avg
+            leg["realized_pnl"] = realized_pnl
+            
+            if net_qty > 0:
+                leg["entry_price"] = buy_avg
+            elif net_qty < 0:
+                leg["entry_price"] = sell_avg
+            else:
+                leg["entry_price"] = 0.0
 
     def print_table(self) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")

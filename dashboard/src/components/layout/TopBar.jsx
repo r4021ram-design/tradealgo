@@ -43,8 +43,7 @@ export const TopBar = () => {
       </div>
     );
   };
-  const activeView = useTerminalStore(state => state.activeView);
-  const setActiveView = useTerminalStore(state => state.setActiveView);
+
   const isPaperTrade = useTerminalStore(state => state.isPaperTrade);
   const togglePaperTrade = useTerminalStore(state => state.togglePaperTrade);
   const theme = useTerminalStore(state => state.theme);
@@ -75,32 +74,6 @@ export const TopBar = () => {
       </div>
 
       <div className="flex items-center space-x-4">
-        {/* Active Mode Switcher */}
-        <div className="flex items-center bg-[#f0f0f0] dark:bg-slate-950 border border-[#ccc] dark:border-slate-800 p-0.5 rounded">
-          <button
-            onClick={() => setActiveView('terminal')}
-            className={`px-3 py-0.5 text-xs font-bold transition-all duration-250 cursor-pointer rounded-sm ${
-              activeView === 'terminal'
-                ? 'bg-[#002060] dark:bg-indigo-600 text-white shadow-sm'
-                : 'text-[#555] dark:text-slate-400 hover:text-black dark:hover:text-slate-200 hover:bg-[#e0e0e0] dark:hover:bg-slate-800'
-            }`}
-            style={{ fontFamily: 'Calibri, Arial, sans-serif' }}
-          >
-            LIVE TERMINAL
-          </button>
-          <button
-            onClick={() => setActiveView('oms')}
-            className={`px-3 py-0.5 text-xs font-bold transition-all duration-250 cursor-pointer rounded-sm ${
-              activeView === 'oms'
-                ? 'bg-[#002060] dark:bg-indigo-600 text-white shadow-sm'
-                : 'text-[#555] dark:text-slate-400 hover:text-black dark:hover:text-slate-200 hover:bg-[#e0e0e0] dark:hover:bg-slate-800'
-            }`}
-            style={{ fontFamily: 'Calibri, Arial, sans-serif' }}
-          >
-            OMS SIMULATOR
-          </button>
-        </div>
-
         {/* Trading Mode Switcher */}
         <div className="flex items-center bg-[#f0f0f0] dark:bg-slate-950 border border-[#ccc] dark:border-slate-800 p-0.5 rounded">
           <button

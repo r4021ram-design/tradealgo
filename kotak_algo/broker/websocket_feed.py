@@ -275,7 +275,14 @@ class WebSocketFeed:
     def _attempt_reconnect(self, reason: str = "") -> None:
         if not self._should_run:
             return
+        self.logger.info("attempting_reconnect_async", reason=reason)
+        threading.Thread(
+            target=self._run_reconnect,
+            args=(reason,),
+            daemon=True
+        ).start()
 
+    def _run_reconnect(self, reason: str = "") -> None:
         self._reconnect_count += 1
         if self._reconnect_count > self.MAX_RECONNECT_ATTEMPTS:
             self._should_run = False
@@ -304,6 +311,8 @@ class WebSocketFeed:
         }))
 
         time.sleep(delay)
+        if not self._should_run:
+            return
         self._backoff = min(self._backoff * 2, 30.0)
 
         try:

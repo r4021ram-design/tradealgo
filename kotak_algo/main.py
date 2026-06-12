@@ -242,7 +242,7 @@ class AlgoApp:
                 # Log a warning if a strategy is stuck in a transition
                 self.logger.warning("strategy_in_transition", strategy=strategy.name, state=strategy.state.value)
 
-        if self.scheduler.is_hard_exit_due():
+        if self.scheduler.is_hard_exit_due() and not self.config["risk"].get("paper_trade", True):
             self.shutdown(reason="hard_exit_time")
 
     def _refresh_nse_reference(self, force: bool = False) -> None:

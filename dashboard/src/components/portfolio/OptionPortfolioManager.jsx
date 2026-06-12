@@ -17,11 +17,10 @@ const formatExpiryPremium = (dateStr) => {
 };
 
 export const OptionPortfolioManager = () => {
-  const { legs, addLeg, updateLeg, removeLeg, underlyingPrice, interestRate, dividendYield, setGlobalParams } = usePortfolioStore();
+  const { underlyingPrice, interestRate, dividendYield, setGlobalParams } = usePortfolioStore();
   const theme = useTerminalStore(state => state.theme);
   const livePositions = useTerminalStore(state => state.positions);
   const spotPrice = useTerminalStore(state => state.spotPrice);
-  const selectedUnderlying = useTerminalStore(state => state.selectedUnderlying);
 
   useEffect(() => {
     if (spotPrice > 0) {
@@ -37,9 +36,9 @@ export const OptionPortfolioManager = () => {
   const [modeFilter, setModeFilter] = useState('ALL'); // 'ALL' | 'LIVE' | 'PAPER'
   const [underlyingFilter, setUnderlyingFilter] = useState('ALL'); // 'ALL' or specific symbol
 
-  // Filter only active positions from broker
+  // Filter only active or closed positions with realized P&L from broker
   const activeLivePositions = useMemo(() => {
-    return livePositions.filter(p => p.netQty !== 0);
+    return livePositions.filter(p => p.netQty !== 0 || p.realizedPnl !== 0);
   }, [livePositions]);
 
   // Parse active live broker positions into Portfolio Legs
@@ -61,7 +60,7 @@ export const OptionPortfolioManager = () => {
         id: `live-${pos.symbol}`,
         symbol: pos.symbol,
         underlying: parsed.underlying || 'NIFTY',
-        isOpen: excludedLivePositions[pos.symbol] !== false,
+        isOpen: pos.netQty !== 0 && excludedLivePositions[pos.symbol] !== false,
         isLive: true,
         isPaper: pos.paper_trade || false,
         size,
@@ -74,25 +73,16 @@ export const OptionPortfolioManager = () => {
         iv: pos.iv !== null && pos.iv !== undefined ? pos.iv : 0.16,
         ltp: pos.ltp || 0,
         delta: pos.delta || 0,
-        theta: pos.theta || 0
+        theta: pos.theta || 0,
+        realizedPnl: pos.realizedPnl || 0
       };
     });
   }, [activeLivePositions, excludedLivePositions, underlyingPrice]);
 
   // Combine Manually Entered Strategy Legs and Live Broker Positions
   const combinedLegs = useMemo(() => {
-    const parsedManualLegs = legs.map(l => {
-      const parsedSymbol = l.symbol ? parseOptionSymbol(l.symbol) : null;
-      const legUnderlying = (parsedSymbol && parsedSymbol.underlying) || l.underlying || selectedUnderlying || 'NIFTY';
-      return {
-        ...l,
-        underlying: legUnderlying,
-        isPaper: true,
-        isLive: false,
-      };
-    });
-    return [...parsedLiveLegs, ...parsedManualLegs];
-  }, [parsedLiveLegs, legs, selectedUnderlying]);
+    return parsedLiveLegs;
+  }, [parsedLiveLegs]);
 
   // Unique Underlyings list for filter
   const uniqueUnderlyings = useMemo(() => {
@@ -135,23 +125,7 @@ export const OptionPortfolioManager = () => {
     });
   }, [parsedLiveLegs, modeFilter, underlyingFilter]);
 
-  // Filtered manual strategy legs for table display
-  const displayedManualLegs = useMemo(() => {
-    return legs.map(l => {
-      const parsedSymbol = l.symbol ? parseOptionSymbol(l.symbol) : null;
-      const legUnderlying = (parsedSymbol && parsedSymbol.underlying) || l.underlying || selectedUnderlying || 'NIFTY';
-      return {
-        ...l,
-        underlying: legUnderlying,
-        isPaper: true,
-        isLive: false,
-      };
-    }).filter(leg => {
-      if (modeFilter === 'LIVE') return false;
-      if (underlyingFilter !== 'ALL' && (leg.underlying || '').toUpperCase() !== underlyingFilter.toUpperCase()) return false;
-      return true;
-    });
-  }, [legs, modeFilter, underlyingFilter, selectedUnderlying]);
+
 
   // Toggle dynamic inclusion of live broker positions in scenario risk engine
   const handleToggleLivePosition = (symbol, checked) => {
@@ -244,12 +218,19 @@ export const OptionPortfolioManager = () => {
     
     filteredLegs.forEach(leg => {
       if (!leg.isOpen) {
-        if (leg.isLive) return; // ignore inactive live positions
+        if (leg.isLive) {
+          realizedPnl += leg.realizedPnl || 0;
+          return;
+        }
         realizedPnl += (leg.exitPrice - leg.entryPrice) * leg.size;
         netPremium += leg.entryPrice * leg.size * -1;
         return;
       }
       netPremium += leg.entryPrice * leg.size * -1;
+
+      if (leg.isLive) {
+        realizedPnl += leg.realizedPnl || 0;
+      }
 
       if (leg.type === 'Stock' || leg.type === 'Future') {
         const livePrice = leg.ltp || underlyingPrice;
@@ -516,14 +497,14 @@ export const OptionPortfolioManager = () => {
                 </tr>
               ) : (
                 displayedLiveLegs.map((leg, i) => {
-                  const pnl = (leg.ltp - leg.entryPrice) * leg.size;
+                  const pnl = (leg.ltp - leg.entryPrice) * leg.size + (leg.realizedPnl || 0);
                   const optType = leg.type === 'Call' || leg.type === 'CE' ? 'CE' : leg.type === 'Put' || leg.type === 'PE' ? 'PE' : leg.type;
                   
                   return (
                     <tr key={leg.id} className="bg-white dark:bg-slate-900">
                       <td className="bg-[#e6e6e6] dark:bg-slate-950 text-center font-bold text-black dark:text-slate-400">{i + 1}</td>
                       <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-center">
-                        <input type="checkbox" checked={leg.isOpen} onChange={e => handleToggleLivePosition(leg.symbol, e.target.checked)} />
+                        <input type="checkbox" checked={leg.isOpen} onChange={e => handleToggleLivePosition(leg.symbol, e.target.checked)} disabled={leg.size === 0} />
                       </td>
                       <td className="font-bold text-center bg-gray-50 dark:bg-slate-950 text-[#002060] dark:text-indigo-400">{leg.underlying}</td>
                       <td className="text-center font-semibold text-slate-800 dark:text-slate-300">{formatExpiryPremium(leg.expDate)}</td>
@@ -546,122 +527,7 @@ export const OptionPortfolioManager = () => {
         </div>
       </div>
 
-      {/* SECTION 2: STRATEGY DESIGN & ADJUSTMENT LEGS */}
-      <div>
-        <div className="bg-[#595959] dark:bg-slate-950 dark:text-indigo-400 dark:border-b dark:border-slate-800 text-white font-bold px-2 py-1 flex items-center justify-between text-xs">
-          <span>🛠️ STRATEGY DESIGNER & ADJUSTMENT SIMULATION LEGS</span>
-          <span className="text-[10px] text-gray-300 dark:text-slate-500">Add adjustment legs here to model hedging scenarios against live portfolio</span>
-        </div>
-        <div className="w-full overflow-x-auto pb-4">
-          <table className="excel-table" style={{ minWidth: '1200px' }}>
-            <thead>
-              <tr className="bg-[#f2f2f2] dark:bg-slate-950 font-bold text-slate-800 dark:text-slate-400">
-                <th className="w-8">Leg</th>
-                <th className="w-12">IsOpen</th>
-                <th className="w-16">Size</th>
-                <th className="w-20">Strike</th>
-                <th className="w-16">Type</th>
-                <th className="w-24">Exp Date</th>
-                <th className="w-16 border-r-2 border-r-gray-400 dark:border-r-slate-700">DTE</th>
-                <th className="w-20">Entry Price</th>
-                <th className="w-20 border-r-2 border-r-gray-400 dark:border-r-slate-700">Exit Price</th>
-                <th className="w-20">CF (Cash Flow)</th>
-                <th className="w-20 border-r-2 border-r-gray-400 dark:border-r-slate-700">Override IV</th>
-                <th className="w-16">Model Px</th>
-                <th className="w-20">Value</th>
-                <th className="w-20">Sim P/L</th>
-                <th className="w-20">Delta</th>
-                <th className="w-20">Gamma</th>
-                <th className="w-20">Theta</th>
-                <th className="w-20">Vega</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayedManualLegs.map((leg, i) => {
-                const simDTE = Math.max(0, leg.dte - simDate);
-                const simT = simDTE / 365.0;
-                const bs = calculateBlackScholes(leg.type, underlyingPrice, leg.strike, simT, interestRate, leg.iv, dividendYield);
-                const cf = leg.size * leg.entryPrice * -1;
-                const value = leg.isOpen ? bs.price * leg.size : 0;
-                const pnl = leg.isOpen ? (bs.price - leg.entryPrice) * leg.size : (leg.exitPrice - leg.entryPrice) * leg.size;
 
-                return (
-                  <tr key={leg.id} className="dark:bg-slate-900">
-                    <td className="bg-[#e6e6e6] dark:bg-slate-950 text-center font-bold text-black dark:text-slate-400">{i + 1}</td>
-                    <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-center">
-                      <input type="checkbox" checked={leg.isOpen} onChange={e => updateLeg(leg.id, {isOpen: e.target.checked})} />
-                    </td>
-                    <td className="excel-input">
-                      <input type="number" className="w-full bg-transparent text-right outline-none font-bold text-black dark:text-slate-200" value={leg.size} onChange={e => updateLeg(leg.id, {size: Number(e.target.value)})} />
-                    </td>
-                    <td className="excel-input">
-                      <input type="number" className="w-full bg-transparent text-right outline-none text-black dark:text-slate-200" value={leg.strike} onChange={e => updateLeg(leg.id, {strike: Number(e.target.value)})} />
-                    </td>
-                    <td className="excel-input text-center font-bold text-black dark:text-slate-200">
-                      <select className="bg-transparent outline-none cursor-pointer" value={leg.type} onChange={e => updateLeg(leg.id, {type: e.target.value})}>
-                        <option value="Call" className="dark:bg-slate-800 dark:text-slate-200">CE</option>
-                        <option value="Put" className="dark:bg-slate-800 dark:text-slate-200">PE</option>
-                      </select>
-                    </td>
-                    <td className="excel-input text-center text-black dark:text-slate-200">{leg.expDate}</td>
-                    <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-center border-r-2 border-r-gray-400 dark:border-r-slate-700 font-bold text-black dark:text-slate-200">
-                       <input type="number" className="w-full bg-transparent text-center outline-none" value={leg.dte} onChange={e => updateLeg(leg.id, {dte: Number(e.target.value)})} />
-                    </td>
-                    <td className="excel-input">
-                      <input type="number" step="0.05" className="w-full bg-transparent text-right outline-none font-bold text-black dark:text-slate-200" value={leg.entryPrice} onChange={e => updateLeg(leg.id, {entryPrice: Number(e.target.value)})} />
-                    </td>
-                    <td className="excel-input border-r-2 border-r-gray-400 dark:border-r-slate-700">
-                      <input type="number" step="0.05" className="w-full bg-transparent text-right outline-none text-black dark:text-slate-200" value={leg.exitPrice} onChange={e => updateLeg(leg.id, {exitPrice: Number(e.target.value)})} disabled={leg.isOpen} />
-                    </td>
-                    <td className={`bg-[#c6efce] dark:bg-emerald-950/45 text-right font-bold ${cf < 0 ? 'text-[#ff0000] dark:text-rose-455' : 'text-black dark:text-slate-200'}`}>
-                      ₹ {cf.toFixed(2)}
-                    </td>
-                    <td className="excel-input border-r-2 border-r-gray-400 dark:border-r-slate-700 text-center text-black dark:text-slate-200">
-                      <input type="number" step="0.01" className="w-full bg-transparent text-center outline-none" value={(leg.iv*100).toFixed(2)} onChange={e => updateLeg(leg.id, {iv: Number(e.target.value)/100})} />%
-                    </td>
-                    <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">₹ {bs.price.toFixed(2)}</td>
-                    <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">₹ {value.toFixed(2)}</td>
-                    <td className={`bg-[#c6efce] dark:bg-emerald-950/45 text-right font-bold ${pnl < 0 ? 'text-[#ff0000] dark:text-rose-455' : 'text-[#006100] dark:text-emerald-400'}`}>₹ {pnl.toFixed(2)}</td>
-                    <td className={`bg-[#c6efce] dark:bg-emerald-950/45 text-right ${bs.delta * leg.size < 0 ? 'text-[#ff0000] dark:text-rose-455' : 'text-[#006100] dark:text-emerald-400'}`}>{(bs.delta * leg.size).toFixed(2)}</td>
-                    <td className={`bg-[#c6efce] dark:bg-emerald-950/45 text-right ${bs.gamma * leg.size < 0 ? 'text-[#ff0000] dark:text-rose-455' : 'text-[#006100] dark:text-emerald-400'}`}>{(bs.gamma * leg.size).toFixed(4)}</td>
-                    <td className={`bg-[#c6efce] dark:bg-emerald-950/45 text-right ${bs.theta * leg.size < 0 ? 'text-[#ff0000] dark:text-rose-455' : 'text-[#006100] dark:text-emerald-400'}`}>{(bs.theta * leg.size).toFixed(2)}</td>
-                    <td className={`bg-[#c6efce] dark:bg-emerald-950/45 text-right ${bs.vega * leg.size < 0 ? 'text-[#ff0000] dark:text-rose-455' : 'text-[#006100] dark:text-emerald-400'}`}>{(bs.vega * leg.size).toFixed(2)}</td>
-                  </tr>
-                )
-              })}
-              
-              {/* Empty Rows Padding */}
-              {Array.from({ length: Math.max(0, 5 - displayedManualLegs.length) }).map((_, i) => (
-                <tr key={`empty-${i}`} className="dark:bg-slate-900">
-                  <td className="bg-[#e6e6e6] dark:bg-slate-950 text-center text-black dark:text-slate-400">{displayedManualLegs.length + i + 1}</td>
-                  <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-center text-black dark:text-slate-400">-</td>
-                  <td className="excel-input"></td>
-                  <td className="excel-input"></td>
-                  <td className="excel-input"></td>
-                  <td className="excel-input"></td>
-                  <td className="bg-[#c6efce] dark:bg-emerald-950/45 border-r-2 border-r-gray-400 dark:border-r-slate-700"></td>
-                  <td className="excel-input"></td>
-                  <td className="excel-input border-r-2 border-r-gray-400 dark:border-r-slate-700"></td>
-                  <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-black dark:text-slate-400">₹ 0.00</td>
-                  <td className="excel-input border-r-2 border-r-gray-400 dark:border-r-slate-700"></td>
-                  <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">₹ 0.00</td>
-                  <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">₹ 0.00</td>
-                  <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">₹ 0.00</td>
-                  <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">0.00</td>
-                  <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">0.0000</td>
-                  <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">0.00</td>
-                  <td className="bg-[#c6efce] dark:bg-emerald-950/45 text-right text-[#006100] dark:text-emerald-400">0.00</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          <div className="flex gap-2 mt-2 px-1">
-             <button onClick={() => addLeg({})} className="bg-[#e6e6e6] dark:bg-slate-800 border border-[#ccc] dark:border-slate-700 px-3 py-1 text-xs hover:bg-[#d9d9d9] dark:hover:bg-slate-700 text-black dark:text-slate-200 font-bold cursor-pointer">Add Simulation Leg</button>
-             <button onClick={() => {if(legs.length > 0) removeLeg(legs[legs.length-1].id)}} className="bg-[#e6e6e6] dark:bg-slate-800 border border-[#ccc] dark:border-slate-700 px-3 py-1 text-xs hover:bg-[#d9d9d9] dark:hover:bg-slate-700 text-black dark:text-slate-200 font-bold cursor-pointer">Remove Last Simulation Leg</button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

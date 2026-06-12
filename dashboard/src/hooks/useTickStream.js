@@ -12,6 +12,7 @@ export const useTickStream = () => {
   const updateTick = useTerminalStore((state) => state.updateTick);
   const updateMarketWatchTick = useTerminalStore((state) => state.updateMarketWatchTick);
   const marketWatch = useTerminalStore((state) => state.marketWatch);
+  const symbolsStr = (marketWatch || []).map(i => i.symbol).sort().join(',');
   const wsRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const marketWatchRef = useRef(marketWatch);
@@ -70,21 +71,20 @@ export const useTickStream = () => {
     };
   }, [updateTick, updateMarketWatchTick]);
 
-  // Dynamically update subscriptions when marketWatch changes (debounced by 250ms)
+  // Dynamically update subscriptions when marketWatch symbols change (debounced by 250ms)
   useEffect(() => {
+    if (!symbolsStr) return;
+    const symbols = symbolsStr.split(',');
     const handler = setTimeout(() => {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        if (marketWatch && marketWatch.length > 0) {
-          const symbols = marketWatch.map(i => i.symbol);
-          wsRef.current.send(JSON.stringify({ action: 'subscribe', symbols }));
-          console.log('[TickStream] Sent dynamic subscription update for:', symbols);
-        }
+        wsRef.current.send(JSON.stringify({ action: 'subscribe', symbols }));
+        console.log('[TickStream] Sent dynamic subscription update for:', symbols);
       }
     }, 250);
 
     return () => {
       clearTimeout(handler);
     };
-  }, [marketWatch]);
+  }, [symbolsStr]);
 };
 

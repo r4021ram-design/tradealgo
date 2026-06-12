@@ -57,13 +57,13 @@ export const MarketWatch = () => {
   const columnDefs = useMemo(() => [
     { field: 'symbol', headerName: 'Symbol', width: 220, pinned: 'left', cellStyle: { fontWeight: 'bold' } },
     { field: 'bidQty', headerName: 'Bid Q', width: 70, type: 'numericColumn' },
-    { field: 'bidPrice', headerName: 'Bid', width: 80, type: 'numericColumn', valueFormatter: p => p.value ? p.value.toFixed(2) : '0.00' },
-    { field: 'askPrice', headerName: 'Ask', width: 80, type: 'numericColumn', valueFormatter: p => p.value ? p.value.toFixed(2) : '0.00' },
+    { field: 'bidPrice', headerName: 'Bid', width: 100, type: 'numericColumn', valueFormatter: p => p.value ? p.value.toFixed(2) : '0.00' },
+    { field: 'askPrice', headerName: 'Ask', width: 100, type: 'numericColumn', valueFormatter: p => p.value ? p.value.toFixed(2) : '0.00' },
     { field: 'askQty', headerName: 'Ask Q', width: 70, type: 'numericColumn' },
     { 
       field: 'ltp', 
       headerName: 'LTP', 
-      width: 90, 
+      width: 100, 
       type: 'numericColumn',
       valueFormatter: p => p.value ? p.value.toFixed(2) : '0.00',
       cellClassRules: {
@@ -95,18 +95,18 @@ export const MarketWatch = () => {
       valueFormatter: p => p.value ? (p.value > 0 ? '+' : '') + fmtOI(p.value) : '-',
       cellStyle: params => ({ color: params.value > 0 ? '#008800' : params.value < 0 ? '#cc0000' : '#555' })
     },
-    { field: 'iv', headerName: 'IV', width: 70, type: 'numericColumn', valueFormatter: p => p.value ? p.value.toFixed(2) + '%' : '-' },
-    { field: 'delta', headerName: 'Delta', width: 70, type: 'numericColumn', valueFormatter: p => p.value ? p.value.toFixed(2) : '-' },
-    { field: 'gamma', headerName: 'Gamma', width: 80, type: 'numericColumn', valueFormatter: p => p.value ? p.value.toFixed(4) : '-' },
+    { field: 'iv', headerName: 'IV', width: 85, type: 'numericColumn', valueFormatter: p => p.value ? p.value.toFixed(2) + '%' : '-' },
+    { field: 'delta', headerName: 'Delta', width: 85, type: 'numericColumn', valueFormatter: p => p.value ? p.value.toFixed(2) : '-' },
+    { field: 'gamma', headerName: 'Gamma', width: 90, type: 'numericColumn', valueFormatter: p => p.value ? p.value.toFixed(4) : '-' },
     { 
       field: 'theta', 
       headerName: 'Theta', 
-      width: 70, 
+      width: 85, 
       type: 'numericColumn', 
       valueFormatter: p => p.value ? p.value.toFixed(2) : '-',
       cellStyle: params => ({ color: params.value < 0 ? '#cc0000' : params.value > 0 ? '#008800' : '#555' })
     },
-    { field: 'vega', headerName: 'Vega', width: 70, type: 'numericColumn', valueFormatter: p => p.value ? p.value.toFixed(2) : '-' },
+    { field: 'vega', headerName: 'Vega', width: 85, type: 'numericColumn', valueFormatter: p => p.value ? p.value.toFixed(2) : '-' },
     {
       headerName: 'Action',
       width: 90,

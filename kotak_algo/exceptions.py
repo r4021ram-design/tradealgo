@@ -193,10 +193,15 @@ def looks_like_session_expired(response: Any) -> bool:
             err_fields.append(fault.get("description"))
 
         for val in err_fields:
-            if val:
-                val_str = str(val).lower()
-                if any(sig in val_str for sig in SESSION_EXPIRED_SIGNALS):
-                    return True
+            if val is not None:
+                try:
+                    val_str = str(val)
+                    if val_str:
+                        val_str = val_str.lower()
+                        if any(sig in val_str for sig in SESSION_EXPIRED_SIGNALS):
+                            return True
+                except Exception:
+                    pass
         return False
 
     # If it is a list, check individual items recursively instead of stringifying the entire list
