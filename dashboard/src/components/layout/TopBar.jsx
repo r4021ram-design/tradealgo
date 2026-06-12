@@ -5,6 +5,7 @@ import { useTerminalStore } from '../../store/useTerminalStore';
 export const TopBar = () => {
   const [time, setTime] = useState(new Date());
   const marketWatch = useTerminalStore(state => state.marketWatch);
+  const wsConnectionStatus = useTerminalStore(state => state.wsConnectionStatus);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -118,10 +119,24 @@ export const TopBar = () => {
           >
             {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
           </button>
-          <div className="flex items-center space-x-1 text-finance-green">
-            <Signal size={14} />
-            <span className="text-xs">CONNECTED</span>
-          </div>
+          {wsConnectionStatus === 'connected' && (
+            <div className="flex items-center space-x-1 text-finance-green font-bold">
+              <Signal size={14} />
+              <span className="text-xs">CONNECTED</span>
+            </div>
+          )}
+          {(wsConnectionStatus === 'connecting' || wsConnectionStatus === 'reconnecting') && (
+            <div className="flex items-center space-x-1 text-amber-500 font-bold animate-pulse">
+              <Signal size={14} className="animate-bounce" />
+              <span className="text-xs">CONNECTING...</span>
+            </div>
+          )}
+          {wsConnectionStatus === 'disconnected' && (
+            <div className="flex items-center space-x-1 text-rose-500 font-bold">
+              <Signal size={14} className="opacity-50" />
+              <span className="text-xs">OFFLINE</span>
+            </div>
+          )}
           <div className="flex items-center space-x-1 text-[#555] font-mono">
             <Clock size={14} />
             <span>{time.toLocaleTimeString('en-IN', { hour12: false })}</span>

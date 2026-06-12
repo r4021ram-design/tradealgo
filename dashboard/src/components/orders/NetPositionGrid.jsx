@@ -29,10 +29,59 @@ import { parseOptionSymbol } from '../../utils/symbolParser';
 
 export const NetPositionGrid = () => {
   const gridRef = useRef();
-  const positions = useTerminalStore(state => state.positions);
+  const positions = useTerminalStore(state => state.liveBrokerPositions || state.positions);
   const theme = useTerminalStore(state => state.theme);
   const [activeTab, setActiveTab] = useState('Market Watch');
   const { pendingOrders, executedOrders, cancelOrder, modifyOrder } = useOrdersData();
+
+  const resolvedPositions = useMemo(() => {
+    const rawPositions = positions || [];
+
+    return rawPositions.map(p => {
+      const symbol = p.symbol || p.trading_symbol || p.trdSym || '';
+      let lotSize = 1;
+      const upperSymbol = symbol.toUpperCase();
+      if (upperSymbol.includes('BANKNIFTY')) {
+        lotSize = 30;
+      } else if (upperSymbol.includes('NIFTY')) {
+        lotSize = 65;
+      } else if (upperSymbol.includes('FINNIFTY')) {
+        lotSize = 60;
+      } else if (upperSymbol.includes('MIDCPNIFTY')) {
+        lotSize = 120;
+      } else if (upperSymbol.includes('SENSEX')) {
+        lotSize = 20;
+      } else if (upperSymbol.includes('BANKEX')) {
+        lotSize = 30;
+      }
+
+      const netQty = p.netQty !== undefined ? p.netQty : 0;
+      const ltp = p.ltp || 0;
+      const avgBuyPrice = p.avgBuyPrice !== undefined ? p.avgBuyPrice : 0;
+      const avgSellPrice = p.avgSellPrice !== undefined ? p.avgSellPrice : 0;
+      
+      let unrealizedPnl = 0;
+      if (netQty > 0) {
+        unrealizedPnl = netQty * (ltp - avgBuyPrice) * lotSize;
+      } else if (netQty < 0) {
+        unrealizedPnl = netQty * (ltp - avgSellPrice) * lotSize;
+      }
+
+      const rawRealized = p.realizedPnl !== undefined ? p.realizedPnl : 0;
+      const realizedPnl = rawRealized * lotSize;
+
+      return {
+        ...p,
+        symbol,
+        netQty,
+        avgBuyPrice,
+        avgSellPrice,
+        realizedPnl,
+        unrealizedPnl,
+        lotSize
+      };
+    });
+  }, [positions]);
 
   const tabs = ['Market Watch', 'Net Position', 'Option Chain', 'Strategy Builder', 'Portfolio Manager', 'Pending Orders', 'Executed Trades'];
 
@@ -61,7 +110,8 @@ export const NetPositionGrid = () => {
         const val = parseOptionSymbol(params.data.symbol).strike;
         return val !== '-' ? Number(val) : null;
       },
-      valueFormatter: params => params.value !== null ? params.value.toFixed(2) : '-'
+      valueFormatter: params => params.value !== null ? params.value.toFixed(2) : '-',
+      cellClass: 'font-mono-numbers'
     },
     {
       headerName: 'Option Type',
@@ -81,10 +131,11 @@ export const NetPositionGrid = () => {
       headerName: 'Net Qty', 
       width: 90, 
       type: 'numericColumn',
-      cellStyle: params => ({ color: params.value > 0 ? greenColor : params.value < 0 ? redColor : neutralColor })
+      cellStyle: params => ({ color: params.value > 0 ? greenColor : params.value < 0 ? redColor : neutralColor }),
+      cellClass: 'font-mono-numbers'
     },
-    { field: 'avgBuyPrice', headerName: 'Avg Buy', width: 100, type: 'numericColumn', valueFormatter: p => p.value.toFixed(2) },
-    { field: 'avgSellPrice', headerName: 'Avg Sell', width: 100, type: 'numericColumn', valueFormatter: p => p.value.toFixed(2) },
+    { field: 'avgBuyPrice', headerName: 'Avg Buy', width: 100, type: 'numericColumn', valueFormatter: p => p.value.toFixed(2), cellClass: 'font-mono-numbers' },
+    { field: 'avgSellPrice', headerName: 'Avg Sell', width: 100, type: 'numericColumn', valueFormatter: p => p.value.toFixed(2), cellClass: 'font-mono-numbers' },
     { 
       field: 'ltp', 
       headerName: 'LTP', 
@@ -94,7 +145,8 @@ export const NetPositionGrid = () => {
       cellClassRules: {
         'flash-up': params => params.data && params.data.tickDirection === 1,
         'flash-down': params => params.data && params.data.tickDirection === -1,
-      }
+      },
+      cellClass: 'font-mono-numbers'
     },
     { 
       field: 'realizedPnl', 
@@ -102,23 +154,18 @@ export const NetPositionGrid = () => {
       width: 110, 
       type: 'numericColumn',
       valueFormatter: p => p.value ? p.value.toFixed(2) : '0.00',
-      cellStyle: params => ({ color: params.value > 0 ? greenColor : params.value < 0 ? redColor : textColor })
+      cellStyle: params => ({ color: params.value > 0 ? greenColor : params.value < 0 ? redColor : textColor }),
+      cellClass: 'font-mono-numbers'
     },
     { 
+      field: 'unrealizedPnl',
       headerName: 'Unrealized (MTM)', 
       width: 140, 
       type: 'numericColumn',
-      valueGetter: params => {
-        if (!params.data) return 0;
-        const p = params.data;
-        if (p.netQty === 0) return 0;
-        return p.netQty > 0 
-          ? (p.ltp - p.avgBuyPrice) * p.netQty 
-          : (p.avgSellPrice - p.ltp) * Math.abs(p.netQty);
-      },
       valueFormatter: p => p.value ? p.value.toFixed(2) : '0.00',
       cellStyle: params => ({ color: params.value > 0 ? greenColor : params.value < 0 ? redColor : neutralColor, fontWeight: 'bold' }),
-      aggFunc: 'sum'
+      aggFunc: 'sum',
+      cellClass: 'font-mono-numbers'
     },
     {
       headerName: 'Net Delta (₹)',
@@ -129,7 +176,8 @@ export const NetPositionGrid = () => {
         return params.data.delta * params.data.netQty;
       },
       valueFormatter: p => p.value ? p.value.toFixed(2) : '-',
-      aggFunc: 'sum'
+      aggFunc: 'sum',
+      cellClass: 'font-mono-numbers'
     },
     {
       headerName: 'Net Gamma',
@@ -140,7 +188,8 @@ export const NetPositionGrid = () => {
         return params.data.gamma * params.data.netQty;
       },
       valueFormatter: p => p.value ? p.value.toFixed(4) : '-',
-      aggFunc: 'sum'
+      aggFunc: 'sum',
+      cellClass: 'font-mono-numbers'
     },
     {
       headerName: 'Net Theta (₹)',
@@ -152,7 +201,8 @@ export const NetPositionGrid = () => {
       },
       valueFormatter: p => p.value ? p.value.toFixed(2) : '-',
       cellStyle: params => ({ color: params.value < 0 ? redColor : params.value > 0 ? greenColor : neutralColor }),
-      aggFunc: 'sum'
+      aggFunc: 'sum',
+      cellClass: 'font-mono-numbers'
     },
     {
       headerName: 'Net Vega (₹)',
@@ -164,7 +214,8 @@ export const NetPositionGrid = () => {
       },
       valueFormatter: p => p.value ? p.value.toFixed(2) : '-',
       cellStyle: params => ({ color: params.value < 0 ? redColor : params.value > 0 ? greenColor : neutralColor }),
-      aggFunc: 'sum'
+      aggFunc: 'sum',
+      cellClass: 'font-mono-numbers'
     },
     {
       headerName: 'Action',
@@ -187,7 +238,7 @@ export const NetPositionGrid = () => {
         gridRef.current.api.refreshCells({ force: true, columns: ['ltp'] });
       }, 0);
     }
-  }, [positions]);
+  }, [resolvedPositions]);
 
   return (
     <div className="flex flex-col flex-1 bg-white dark:bg-slate-900 min-h-0 overflow-hidden">
@@ -218,7 +269,7 @@ export const NetPositionGrid = () => {
           <div className="h-full ag-theme-alpine">
             <AgGridReact
               ref={gridRef}
-              rowData={positions}
+              rowData={resolvedPositions}
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
               headerHeight={28}

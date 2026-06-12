@@ -183,3 +183,8 @@
 .no-scrollbar {
   -ms-overflow-style: none;  /* IE and Edge */
 }
+
+/* Monospace font utility for numbers in grids */
+.font-mono-numbers {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}

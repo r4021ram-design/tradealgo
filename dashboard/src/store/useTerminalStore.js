@@ -8,6 +8,7 @@ const savedSymbols = JSON.parse(localStorage.getItem('added_symbols') || '[]');
 
 export const useTerminalStore = create((set, get) => ({
   positions: initialPositions,
+  liveBrokerPositions: [],
   marketWatch: savedSymbols,
   addedSymbols: savedSymbols,
   availableMargin: 0,
@@ -18,6 +19,14 @@ export const useTerminalStore = create((set, get) => ({
   banknifty: { ltp: 0.0, change: 0.0, percentChange: 0.0 },
   sensex: { ltp: 0.0, change: 0.0, percentChange: 0.0 },
   indiavix: { ltp: 0.0, change: 0.0, percentChange: 0.0 },
+
+  // --- Market Status Engine ---
+  marketState: 'DISCONNECTED',
+  dataSource: 'SNAPSHOT',
+  lastUpdateTimestamp: null,
+  nextMarketOpen: null,
+  wsConnectionStatus: 'disconnected',
+  reconnectAttempt: 0,
 
 
 
@@ -111,7 +120,7 @@ export const useTerminalStore = create((set, get) => ({
     return { addedSymbols: updated, marketWatch: currentMw };
   }),
 
-  setPositions: (positions) => set({ positions }),
+  setPositions: (positions) => set({ positions, liveBrokerPositions: positions }),
   setMargins: (availableMargin, marginUsed) => set({ availableMargin, marginUsed }),
   setNiftySpot: (niftySpot) => set((state) => ({ niftySpot, nifty: { ...state.nifty, ltp: niftySpot } })),
   setBankNiftySpot: (bankNiftySpot) => set((state) => ({ bankNiftySpot, banknifty: { ...state.banknifty, ltp: bankNiftySpot } })),
@@ -209,8 +218,10 @@ export const useTerminalStore = create((set, get) => ({
       return item;
     });
 
+    const updatedPositions = updateLtp(state.positions);
     return {
-      positions: updateLtp(state.positions),
+      positions: updatedPositions,
+      liveBrokerPositions: updatedPositions,
       marketWatch: updateLtp(state.marketWatch),
       ...updatedIndex
     };
@@ -265,15 +276,19 @@ export const useTerminalStore = create((set, get) => ({
   }),
 
   // Square off position
-  squareOff: (symbol) => set((state) => ({
-    positions: state.positions.map(p => {
+  squareOff: (symbol) => set((state) => {
+    const updatedPositions = state.positions.map(p => {
       if (p.symbol === symbol) {
         const unrealized = p.netQty > 0 ? (p.ltp - p.avgBuyPrice) * p.netQty : (p.avgSellPrice - p.ltp) * Math.abs(p.netQty);
         return { ...p, netQty: 0, realizedPnl: p.realizedPnl + unrealized };
       }
       return p;
-    })
-  })),
+    });
+    return {
+      positions: updatedPositions,
+      liveBrokerPositions: updatedPositions
+    };
+  }),
 
   // Execute multi-leg strategy
   executeStrategy: async (name, legs) => {
@@ -338,5 +353,14 @@ export const useTerminalStore = create((set, get) => ({
     const newTheme = state.theme === 'light' ? 'dark' : 'light';
     localStorage.setItem('app_theme', newTheme);
     return { theme: newTheme };
-  })
+  }),
+
+  // --- Market Status Actions ---
+  setMarketState: (marketState) => set({ marketState }),
+  setDataSource: (dataSource) => set({ dataSource }),
+  setLastUpdateTimestamp: (lastUpdateTimestamp) => set({ lastUpdateTimestamp }),
+  setNextMarketOpen: (nextMarketOpen) => set({ nextMarketOpen }),
+  setWsConnectionStatus: (wsConnectionStatus) => set({ wsConnectionStatus }),
+  incrementReconnectAttempt: () => set((state) => ({ reconnectAttempt: state.reconnectAttempt + 1 })),
+  resetReconnectAttempt: () => set({ reconnectAttempt: 0 })
 }));

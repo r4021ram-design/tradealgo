@@ -6,3 +6,6 @@ kotak_algo/snapshots/
 __pycache__/
 *.pyc
 data/
+kotak_algo/logs/
+scratch/
+*.log

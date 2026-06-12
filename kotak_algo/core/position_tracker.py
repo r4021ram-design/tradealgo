@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
 import threading
 import time
 from datetime import datetime
@@ -464,6 +465,26 @@ class PositionTracker:
         entry["paper_trade"] = order_id.startswith("paper-") or self.paper_trade
         self.legs[symbol] = entry
         self.logger.info("fill_recorded", trading_symbol=symbol, transaction_type=tx_type, fill_price=fill_price, new_qty=entry.get("quantity"), status=entry.get("status"))
+        self._save_trade_to_db(symbol, order_qty, tx_type, fill_price)
+
+    def _save_trade_to_db(self, symbol: str, quantity: int, side: str, price: float) -> None:
+        db_path = Path(__file__).resolve().parent.parent / "instruments" / "data" / "trades.db"
+        self._init_trades_db(db_path)
+        
+        conn = sqlite3.connect(str(db_path))
+        try:
+            with conn:
+                now_str = datetime.now().isoformat()
+                db_side = "BUY" if side.upper() in ("B", "BUY") else "SELL"
+                conn.execute(
+                    "INSERT INTO trades (symbol, quantity, side, price, timestamp) VALUES (?, ?, ?, ?, ?)",
+                    (symbol, quantity, db_side, price, now_str)
+                )
+            self.logger.info("trade_persisted_to_db", symbol=symbol, quantity=quantity, side=db_side, price=price)
+        except Exception as e:
+            self.logger.warning("failed_to_persist_trade", error=str(e))
+        finally:
+            conn.close()
 
     def total_pnl(self) -> float:
         total = 0.0
@@ -593,6 +614,107 @@ class PositionTracker:
         except Exception as exc:
             self.logger.warning("failed_to_update_index_spots", error=str(exc))
 
+    def _init_trades_db(self, db_path: Path) -> None:
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(db_path))
+        try:
+            with conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS trades (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        symbol TEXT NOT NULL,
+                        quantity INTEGER NOT NULL,
+                        side TEXT NOT NULL,
+                        price REAL NOT NULL,
+                        timestamp TEXT NOT NULL
+                    )
+                """)
+        finally:
+            conn.close()
+
+    def _load_offline_positions(self) -> None:
+        db_path = Path(__file__).resolve().parent.parent / "instruments" / "data" / "trades.db"
+        self._init_trades_db(db_path)
+        
+        conn = sqlite3.connect(str(db_path))
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    symbol,
+                    SUM(CASE WHEN side = 'BUY' THEN quantity ELSE -quantity END) AS net_qty,
+                    SUM(CASE WHEN side = 'BUY' THEN quantity ELSE 0 END) AS total_buy_qty,
+                    SUM(CASE WHEN side = 'SELL' THEN quantity ELSE 0 END) AS total_sell_qty,
+                    SUM(CASE WHEN side = 'BUY' THEN quantity * price ELSE 0.0 END) AS total_buy_val,
+                    SUM(CASE WHEN side = 'SELL' THEN quantity * price ELSE 0.0 END) AS total_sell_val
+                FROM trades
+                GROUP BY symbol
+            """)
+            rows = cursor.fetchall()
+            
+            for row in rows:
+                symbol = row["symbol"]
+                net_qty = int(row["net_qty"] or 0)
+                total_buy_qty = int(row["total_buy_qty"] or 0)
+                total_sell_qty = int(row["total_sell_qty"] or 0)
+                total_buy_val = float(row["total_buy_val"] or 0.0)
+                total_sell_val = float(row["total_sell_val"] or 0.0)
+                
+                qty = abs(net_qty)
+                
+                leg = self.legs.setdefault(symbol, {})
+                leg["quantity"] = qty
+                leg["status"] = "OPEN" if qty > 0 else "CLOSED"
+                leg["side"] = "SHORT" if net_qty < 0 else "LONG"
+                leg["paper_trade"] = self.paper_trade
+                
+                buy_avg = total_buy_val / total_buy_qty if total_buy_qty > 0 else 0.0
+                sell_avg = total_sell_val / total_sell_qty if total_sell_qty > 0 else 0.0
+                
+                closed_qty = min(total_buy_qty, total_sell_qty)
+                realized_pnl = 0.0
+                if closed_qty > 0:
+                    realized_pnl = (sell_avg - buy_avg) * closed_qty
+                    
+                leg["buy_avg"] = buy_avg
+                leg["sell_avg"] = sell_avg
+                leg["realized_pnl"] = realized_pnl
+                
+                if net_qty > 0:
+                    leg["entry_price"] = buy_avg
+                elif net_qty < 0:
+                    leg["entry_price"] = sell_avg
+                else:
+                    leg["entry_price"] = 0.0
+                
+                # Fetch LTP from LKV store or compute based on static NIFTY spot
+                lkv_entry = self.lkv_store.get_full(symbol)
+                ltp = lkv_entry.get("ltp", 0.0)
+                if ltp <= 0.0:
+                    # Provide default static LKV prices for the options
+                    if "CE" in symbol:
+                        ltp = 110.20
+                    elif "PE" in symbol:
+                        ltp = 105.40
+                    else:
+                        ltp = (buy_avg or sell_avg)
+                    self.lkv_store.set(symbol, ltp)
+                
+                # Make sure the market_data has the LTP populated so P&L and Greeks can be computed
+                if symbol not in self.market_data:
+                    self.update_market_data(
+                        trading_symbol=symbol,
+                        instrument_token=None,
+                        ltp=ltp,
+                        bid=ltp - 0.05,
+                        ask=ltp + 0.05
+                    )
+        except Exception as e:
+            self.logger.warning("failed_to_load_offline_positions", error=str(e))
+        finally:
+            conn.close()
+
     def _merge_positions(self, positions: list) -> None:
         if self.paper_trade:
             return
@@ -601,6 +723,12 @@ class PositionTracker:
         paper_symbols = [sym for sym, leg in self.legs.items() if leg.get("paper_trade")]
         for sym in paper_symbols:
             self.legs.pop(sym, None)
+
+        if not positions:
+            # Query offline database if off-market hours or weekend
+            if not self.is_market_hours():
+                self._load_offline_positions()
+            return
 
         for row in positions:
             symbol = row.get("trading_symbol") or row.get("trdSym") or row.get("symbol")

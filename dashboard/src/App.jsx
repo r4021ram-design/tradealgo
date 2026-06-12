@@ -7,6 +7,7 @@ import { OrderModal } from './components/orders/OrderModal';
 import { useTickStream } from './hooks/useTickStream';
 import { useTerminalStore } from './store/useTerminalStore';
 import { useLiveData } from './hooks/useLiveData';
+import { useMarketStatusEngine } from './hooks/useMarketStatusEngine';
 import { getApiUrl } from './utils/api';
 import { Lock, Unlock, ShieldAlert, KeyRound, CheckCircle } from 'lucide-react';
 
@@ -247,6 +248,7 @@ function App() {
 
 // Separate component to safely avoid running active trading hooks until unlocked
 function UnlockedApp() {
+  useMarketStatusEngine();
   useTickStream();
   useLiveData();
 

@@ -56,6 +56,17 @@ This report summarizes the verified setup, implemented advanced strategy feature
   - `📊 Dashboard`: Link button to load the web UI.
 - **Command & Callback Listener**: Runs a background `TelegramBotListener` thread to poll for commands (`/start`, `/status`, `/kill`) and execute database updates or square-offs based on user button interactions.
 
+### 6. Market Status & Data Availability Engine
+- **Centralized Status Hook**: Implemented `useMarketStatusEngine` to manage states (`LIVE`, `DELAYED`, `MARKET_CLOSED`, `HOLIDAY`, `DISCONNECTED`, `RECONNECTING`) and run automated failovers (WebSocket $\rightarrow$ REST Polling $\rightarrow$ Snapshot Cache).
+- **Market Hours & Calendar**: Created `MarketHoursEngine` and `HolidayCalendarService` to monitor Indian derivative market sessions, holidays for 2026, and special Muhurat trading dates.
+- **Snapshot Caching**: Created `MarketSnapshotCache` to persist spot prices, option chains, Greeks, open interest, and portfolio margins in local storage and IndexedDB.
+- **Bloomberg-Style Banner**: Created `MarketStatusBanner` which displays indicators, active feed sources, and next open times, ensuring the terminal remains functional and descriptive off-market.
+
+### 7. Net Position Scaling & SQL Aggregations
+- **Lot Size Alignment**: Aligned grid calculations in `NetPositionGrid.jsx` with database contract specifications (NIFTY = 65, BANKNIFTY = 30, SENSEX = 20, etc.).
+- **Formula Compliance**: Ensured Unrealized P&L strictly follows standard institutional formula: `Net_Quantity * (Current_LTP - Average_Price) * Lot_Size`.
+- **SQL Aggregation**: Refactored offline database loading to query aggregated trade stats directly in SQL conditional sums to avoid python loop errors.
+
 ---
 
 ## 🧪 Verification & Test Results

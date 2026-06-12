@@ -13,6 +13,7 @@ export interface OrderModalState {
 
 export interface TerminalStore {
   positions: any[];
+  liveBrokerPositions: any[];
   marketWatch: any[];
   addedSymbols: any[];
   availableMargin: number;
@@ -30,6 +31,23 @@ export interface TerminalStore {
   availableUnderlyings: string[];
   spotPrice: number;
   optionChain: any[];
+  
+  // Market State Engine
+  marketState: string;
+  dataSource: string;
+  lastUpdateTimestamp: string | null;
+  nextMarketOpen: string | null;
+  wsConnectionStatus: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+  reconnectAttempt: number;
+  
+  setMarketState: (marketState: string) => void;
+  setDataSource: (dataSource: string) => void;
+  setLastUpdateTimestamp: (timestamp: string | null) => void;
+  setNextMarketOpen: (nextMarketOpen: string | null) => void;
+  setWsConnectionStatus: (wsConnectionStatus: 'disconnected' | 'connecting' | 'connected' | 'reconnecting') => void;
+  incrementReconnectAttempt: () => void;
+  resetReconnectAttempt: () => void;
+
   setUnderlying: (underlying: string) => void;
   setExpiry: (expiry: string) => void;
   setSpotPrice: (price: number) => void;

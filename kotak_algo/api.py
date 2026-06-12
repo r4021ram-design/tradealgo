@@ -366,6 +366,8 @@ async def detailed_health():
 @app.get("/sync-state")
 async def sync_state(app: AlgoApp = Depends(get_algo_app_or_404)):
     tracker = app.position_tracker
+    if not tracker.legs and not tracker.is_market_hours():
+        tracker._load_offline_positions()
     return {
         "legs": tracker.legs,
         "market_data": tracker.market_data,
